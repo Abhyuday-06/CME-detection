@@ -3,19 +3,38 @@ import cdflib
 import psycopg2
 from datetime import datetime
 import numpy as np
+from dotenv import load_dotenv
 
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+load_dotenv()
+
+DB_URI = os.getenv('DB_URI')
 
 try:
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(DB_URI)
     cursor = conn.cursor()
     print("Connected to PostgreSQL successfully.")
+    
+    # ENSURE UNIQUE CONSTRAINT EXISTS
+    # This prevents duplicates and allows us to use "ON CONFLICT DO NOTHING"
+    try:
+        cursor.execute("""
+            ALTER TABLE swis_moments 
+            ADD CONSTRAINT unique_observation_time UNIQUE (observation_time);
+        """)
+        conn.commit()
+        print("Constraint added: 'observation_time' is now unique.")
+    except psycopg2.errors.DuplicateTable:
+        # Constraint already exists, all good
+        conn.rollback()
+        pass
+    except psycopg2.errors.InvalidJsonText:
+        conn.rollback()
+    except Exception as e:
+        # If table setup is different, just warn
+        # If duplicate keys exist, we can't create the constraint.
+        print(f"Notice: Could not add unique constraint. Reason: {e}")
+        conn.rollback()
+        
 except Exception as e:
     print(f"Database connection failed: {e}")
     exit()
@@ -55,7 +74,8 @@ def process_cdf_file(filepath):
             sql = """
                 INSERT INTO swis_moments 
                 (observation_time, proton_density, proton_speed, proton_thermal_speed, alpha_density, alpha_speed, alpha_thermal_speed, sc_x, sc_y, sc_z)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT DO NOTHING;
             """
             
             # Explicitly convert numpy types to Python float/int for SQL compatibility
@@ -125,4 +145,22 @@ def main():
     print("\n All files processed. Database is populated!")
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dir", type=str, help="Directory containing CDF files to process")
+    args = parser.parse_args()
+
+    if args.dir:
+        # Custom directory mode (for web uploads)
+        if os.path.exists(args.dir):
+            print(f"Scanning provided directory: {args.dir}")
+            for filename in sorted(os.listdir(args.dir)):
+                if filename.endswith(".cdf"):
+                     process_cdf_file(os.path.join(args.dir, filename))
+            cursor.close()
+            conn.close()
+        else:
+            print(f"Directory not found: {args.dir}")
+    else:
+        # Default recursive scan mode
+        main()

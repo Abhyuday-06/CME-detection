@@ -1,17 +1,15 @@
 import psycopg2
 import hashlib
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+load_dotenv()
+
+DB_URI = os.getenv('DB_URI')
 
 def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(DB_URI)
 
 def seed_database():
     conn = get_db_connection()
@@ -89,7 +87,8 @@ def seed_database():
     print("   - Users")
     # Password: 'admin_password' (hashed)
     # In a real app, use bcrypt/argon2. Here using SHA256 for simplicity of the demo.
-    pass_hash = hashlib.sha256("admin123".encode()).hexdigest()
+    admin_pass = os.getenv('ADMIN_PASSWORD', 'admin123')
+    pass_hash = hashlib.sha256(admin_pass.encode()).hexdigest()
     
     cursor.execute("""
         INSERT INTO users (username, password_hash, email, role_id, created_at)

@@ -1,17 +1,15 @@
 import psycopg2
 from psycopg2.extras import execute_values
 import hashlib
+import os
+from dotenv import load_dotenv
 
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+load_dotenv()
+
+DB_URI = os.getenv('DB_URI')
 
 def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(DB_URI)
 
 def seed_satellites(conn):
     print("Seeding Satellites...")

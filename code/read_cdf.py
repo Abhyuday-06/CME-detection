@@ -2,7 +2,7 @@ import cdflib
 import os
 
 # Path to the CDF file
-cdf_file_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'SWIS-ISSDC', 'AL1_ASW91_L2_BLK_20251224_UNP_9999_999999_V02.cdf')
+cdf_file_path = 'E:\\Programming\\CME-Detection\\data\\SWIS-ISSDC\\positive\\AL1_ASW91_L2_BLK_20240509_UNP_9999_999999_V02.cdf'
 
 try:
     # Open the CDF file

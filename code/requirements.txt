@@ -1,7 +1,10 @@
 flask
-psycopg2
+psycopg2-binary
 pandas
 cdflib
 numpy
 scikit-learn
 tensorflow
+flask-cors
+flask-login
+python-dotenv

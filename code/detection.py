@@ -2,18 +2,16 @@ import pandas as pd
 import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # DATABASE CONNECTION
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+DB_URI = os.getenv('DB_URI')
 
 def detect_cme_events(start_date, end_date):
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(DB_URI)
     
     print(f" Analyzing data from {start_date} to {end_date}...")
 
@@ -62,8 +60,8 @@ def detect_cme_events(start_date, end_date):
     for time, row in df.iterrows():
         
         # --- CONDITIONS ---
-        # 1. High Speed (Storm)
-        is_fast = row['proton_speed'] > 600
+        # 1. High Speed (Storm) - Lowered threshold to catch slower CMEs
+        is_fast = row['proton_speed'] > 450
         
         # 2. Shock (Sudden Jump)
         threshold = row['rolling_mean_v'] + (3 * row['rolling_std_v'])
@@ -73,7 +71,8 @@ def detect_cme_events(start_date, end_date):
         is_enriched = row['alpha_ratio'] > 0.04
         
         # TRIGGER LOGIC: Is this a dangerous moment?
-        is_danger = (is_fast and is_shock) or (is_fast and is_enriched) or (row['proton_speed'] > 700)
+        # Relaxed trigger: Speed > 450 AND (Shock OR Enriched) OR Speed > 600 (Absolute Storm)
+        is_danger = (is_fast and is_shock) or (is_fast and is_enriched) or (row['proton_speed'] > 600)
 
         # --- STATE MACHINE WITH COOLDOWN ---
         
@@ -157,8 +156,26 @@ def detect_cme_events(start_date, end_date):
     conn.close()
 
 # --- RUN ANALYSIS ---
-# 1. Run on Quiet Data (Should find 0 or very few)
-detect_cme_events("2024-08-20", "2024-08-30")
+def run_full_analysis():
+    conn = psycopg2.connect(DB_URI)
+    cursor = conn.cursor()
+    
+    # 1. Clear existing alerts to prevent duplicates
+    print("Clearing old alerts...")
+    cursor.execute("TRUNCATE TABLE alerts RESTART IDENTITY CASCADE;")
+    conn.commit()
+    
+    # 2. Find the full data range
+    print("Detecting data range...")
+    cursor.execute("SELECT MIN(observation_time), MAX(observation_time) FROM swis_moments")
+    min_date, max_date = cursor.fetchone()
+    conn.close()
+    
+    if min_date and max_date:
+        print(f"Running detection from {min_date} to {max_date}")
+        detect_cme_events(str(min_date), str(max_date))
+    else:
+        print("No data in swis_moments to analyze.")
 
-# 2. Run on Storm Data (Should find the Oct 10th event)
-detect_cme_events("2024-05-10", "2024-05-15")
+if __name__ == "__main__":
+    run_full_analysis()

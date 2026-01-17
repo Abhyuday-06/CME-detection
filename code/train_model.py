@@ -5,15 +5,12 @@ import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 import os
 import pickle
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # DATABASE CONFIGURATION
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql",
-    "host": "127.0.0.1", 
-    "port": "5433"
-}
+DB_URI = os.getenv('DB_URI')
 
 # HYPERPARAMETERS
 LOOKBACK_HOURS = 24  # Use past 24 hours to predict
@@ -22,7 +19,7 @@ EPOCHS = 20
 BATCH_SIZE = 32
 
 def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(DB_URI)
 
 def fetch_training_data():
     print("Connecting to Database...")
@@ -83,9 +80,14 @@ def main():
     scaler = MinMaxScaler()
     data_scaled = scaler.fit_transform(df_processed.values)
     
-    with open('scaler.pkl', 'wb') as f:
+    # Determine absolute paths based on script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    scaler_path = os.path.join(script_dir, 'scaler.pkl')
+    model_path = os.path.join(script_dir, 'cme_prediction_model.keras')
+
+    with open(scaler_path, 'wb') as f:
         pickle.dump(scaler, f)
-    print("Scaler saved to scaler.pkl")
+    print(f"Scaler saved to {scaler_path}")
 
     X, y = create_sequences(data_scaled, LOOKBACK_HOURS, FORECAST_HORIZON)
     print(f"Created {len(X)} training sequences.")
@@ -109,8 +111,8 @@ def main():
         verbose=1
     )
 
-    model.save('cme_prediction_model.keras')
-    print("Model saved to cme_prediction_model.keras")
+    model.save(model_path)
+    print(f"Model saved to {model_path}")
 
 if __name__ == "__main__":
     main()

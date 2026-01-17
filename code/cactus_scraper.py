@@ -2,14 +2,12 @@ import requests
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
+import os
+from dotenv import load_dotenv
 
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+load_dotenv()
+
+DB_URI = os.getenv('DB_URI')
 
 def save_to_db(df):
     if df is None or df.empty:
@@ -19,7 +17,7 @@ def save_to_db(df):
     conn = None
     cur = None
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(DB_URI)
         cur = conn.cursor()
 
         data_tuples = [tuple(x) for x in df.to_numpy()]
@@ -85,7 +83,7 @@ def scrape_cactus(year, month):
     return pd.DataFrame(cme_data)
 
 if __name__ == "__main__":
-    for year in [2024, 2025]:
+    for year in [2024, 2025, 2026]:
         for month in range(1, 13):
             print(f"\n--- Scraping CME Data for {year}-{month:02d} ---")
             df_cme = scrape_cactus(year, month)

@@ -3,399 +3,857 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SolarWatch | Aditya-L1 Mission Control</title>
+    <title>SolarWatch | Mission Control</title>
     
     <!-- Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
-    <!-- Plotly.js for Scientific Charts -->
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+    <!-- Lottie Web -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
     
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --accent-red: #ef4444;
-            --accent-blue: #3b82f6;
-            --accent-orange: #f97316;
-            --accent-green: #22c55e;
+            --bg-dark: #070b14;
+            --panel-bg: rgba(22, 27, 40, 0.9); /* More opaque for contrast */
+            --border-color: rgba(64, 166, 255, 0.3);
+            --accent-gold: #fbbf24; /* Brighter Gold */
+            --accent-blue: #38bdf8; /* Brighter Blue */
+            --accent-red: #f43f5e; /* Brighter Red */
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1; /* Brighter secondary text */
         }
-        
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--text-primary); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 10%, rgba(20, 50, 100, 0.2) 0%, transparent 70%);
         }
-        
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Navbar */
         .navbar {
-            background-color: #0f172a !important;
-            border-bottom: 1px solid #334155;
+            background: rgba(7, 11, 20, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.8rem 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .navbar-brand {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.6rem;
+            color: #fff !important;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        .logo-icon {
+            color: var(--accent-gold);
+            filter: drop-shadow(0 0 8px var(--accent-gold));
+        }
+
+        /* Metrics Cards */
+        .metric-card {
+            padding: 1.5rem;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
         }
         
-        .card { 
-            background-color: var(--card-bg); 
-            border: 1px solid #334155; 
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px; 
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border-color: var(--accent-blue);
         }
         
-        .metric-value { font-size: 2rem; font-weight: 700; }
-        .metric-label { color: var(--text-secondary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 20px;
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--accent-blue);
+            box-shadow: 0 0 10px var(--accent-blue);
+        }
+
+        .metric-card.danger::before { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+        .metric-card.safe::before { background: var(--accent-gold); box-shadow: 0 0 10px var(--accent-gold); }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0.5rem 0;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .metric-label {
+            text-transform: uppercase;
             font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
             font-weight: 600;
         }
-        .status-safe { background-color: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
-        .status-danger { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
-        
-        /* Table Styling */
-        .table-dark { background-color: transparent; }
-        .table-dark th { color: var(--text-secondary); border-bottom: 1px solid #475569; }
-        .table-dark td { border-bottom: 1px solid #334155; vertical-align: middle; }
-        
-        /* Loading Overlay */
-        #loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.9);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 9999;
+
+        /* Charts */
+        .chart-container {
+            min-height: 400px;
+            padding: 1rem;
         }
+
+        /* Controls */
+        .btn-custom {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .btn-custom:hover, .btn-custom.active {
+            background: var(--accent-blue);
+            color: #000;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+        }
+        
+        .btn-danger-custom {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: rgba(244, 63, 94, 0.1);
+        }
+        
+        .btn-danger-custom:hover {
+            background: var(--accent-red);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 42, 109, 0.6);
+        }
+        
+        .bg-opacity-50 {
+           --bs-bg-opacity: 0.8; /* Make headers darker */ 
+        }
+
+        /* Tables */
+        .table-custom th {
+            border-bottom: 2px solid var(--accent-blue);
+            color: var(--accent-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+        
+        .table-custom td {
+            color: var(--text-primary);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+
+        /* Admin Controls */
+        .admin-controls-card {
+            border: 1px solid var(--accent-gold);
+        }
+        .admin-controls-card h5 {
+            color: var(--accent-gold);
+            font-family: 'Share Tech Mono';
+            letter-spacing: 2px;
+        }
+
+        /* Modal Custom */
+        .modal-content {
+            background: #0f131f;
+            border: 1px solid var(--accent-blue);
+            color: var(--text-primary);
+        }
+        .modal-header { border-bottom: 1px solid var(--accent-blue); }
+        .modal-footer { border-top: 1px solid var(--accent-blue); }
+        .form-control, .form-select {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: #fff;
+        }
+        .form-control:focus {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+            border-color: var(--accent-blue);
+        }
+
+        /* Loading */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050510;
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-family: 'Share Tech Mono';
+            letter-spacing: 3px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050510; }
+        ::-webkit-scrollbar-thumb { background: #334; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-<!-- Loading Spinner -->
-<div id="loading">
-    <div class="text-center">
-        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
-        <div class="mt-3">Acquiring Telemetry...</div>
-    </div>
-</div>
-
-<!-- Navbar -->
-<nav class="navbar navbar-dark sticky-top px-4">
-    <div class="d-flex align-items-center">
-        <i class="bi bi-sun-fill text-warning fs-3 me-2"></i>
-        <span class="navbar-brand mb-0 h1 fw-bold">SolarWatch <span class="text-muted fw-light">| Aditya-L1 Mission Control</span></span>
-    </div>
-    <div>
-        <span class="text-secondary me-3"><i class="bi bi-clock"></i> <span id="last-updated">--:--:--</span></span>
-        <span id="system-status" class="status-badge status-safe"><i class="bi bi-check-circle-fill"></i> Nominal</span>
-    </div>
-</nav>
-
-<div class="container-fluid px-4 mt-4">
-    
-    <!-- Top Metrics Row -->
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card p-3">
-                <div class="metric-label">Max Proton Speed</div>
-                <div class="metric-value text-danger"><span id="max-speed">--</span> <span class="fs-6 text-muted">km/s</span></div>
-                <div class="text-secondary small"><i class="bi bi-speedometer2"></i> Peak Velocity</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3">
-                <div class="metric-label">Max Density</div>
-                <div class="metric-value text-primary"><span id="max-density">--</span> <span class="fs-6 text-muted">#/cm³</span></div>
-                <div class="text-secondary small"><i class="bi bi-grid-3x3"></i> Particle Concentration</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3">
-                <div class="metric-label">Alpha Ratio</div>
-                <div class="metric-value text-warning"><span id="max-alpha">--</span> <span class="fs-6 text-muted">%</span></div>
-                <div class="text-secondary small"><i class="bi bi-radioactive"></i> Helium Composition</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3">
-                <div class="metric-label">Events Detected</div>
-                <div class="metric-value text-white"><span id="event-count">0</span></div>
-                <div class="text-secondary small"><i class="bi bi-exclamation-triangle"></i> CME Anomalies</div>
-            </div>
-        </div>
+    <!-- Loading Screen -->
+    <div id="loading-overlay">
+        <div id="lottie-loader" style="width: 200px; height: 200px;"></div>
+        <div class="loading-text text-info">INITIALIZING TELEMETRY UPLINK...</div>
     </div>
 
-    <!-- Main Charts Row -->
-    <div class="row">
-        <!-- Solar Wind Speed & Density Chart -->
-        <div class="col-lg-8">
-            <div class="card p-3">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Solar Wind Plasma Parameters</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button id="btn-24h" class="btn btn-outline-secondary" onclick="setTimeRange('24h')">24h</button>
-                        <button id="btn-7d" class="btn btn-outline-secondary active" onclick="setTimeRange('7d')">7d</button>
-                        <button id="btn-30d" class="btn btn-outline-secondary" onclick="setTimeRange('30d')">30d</button>
-                        <button id="btn-all" class="btn btn-outline-secondary" onclick="setTimeRange('all')">All</button>
+    <!-- Nav -->
+    <nav class="navbar sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <i class="bi bi-radioactive logo-icon me-2"></i> SOLAR<span style="color:var(--accent-blue)">WATCH</span>
+            </a>
+            
+            <div class="d-flex align-items-center gap-3">
+                <span class="d-none d-md-block text-secondary font-monospace" style="font-size: 0.8rem;">
+                    USER: <span class="text-white">{{ user.username.upper() }} [{{ user.role.upper() }}]</span>
+                </span>
+                
+                <a href="/logout" class="btn btn-sm btn-outline-secondary">LOGOUT</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid p-4">
+        
+        <!-- SCIENTIST / ADMIN CONTROL PANEL -->
+        {% if user.is_scientist() %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="glass-panel p-3 admin-controls-card d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shield-lock-fill text-warning fs-4 me-3"></i>
+                        <div>
+                            <h5 class="m-0">COMMAND CENTER</h5>
+                            <small class="text-muted">AUTHORIZED PERSONNEL ONLY</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-info font-monospace" onclick="showCMEHistory()">
+                            <i class="bi bi-calendar-event me-2"></i>CME LOGS
+                        </button>
+                        <button class="btn btn-danger-custom font-monospace" data-bs-toggle="modal" data-bs-target="#ingestModal">
+                            <i class="bi bi-cloud-upload me-2"></i>INGEST DATA
+                        </button>
+                        <button class="btn btn-danger-custom font-monospace" onclick="runScript('train')">
+                            <i class="bi bi-cpu me-2"></i>RETRAIN MODEL
+                        </button>
                     </div>
                 </div>
-                <div id="plasmaChart" style="height: 400px;"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Status Bar -->
+        <div class="row mb-4">
+            <div class="col-md-9">
+                <div class="btn-group w-100 glass-panel p-1">
+                    <button id="btn-24h" class="btn btn-custom active" onclick="setTimeRange('24h', this)">T-24H</button>
+                    <button class="btn btn-custom" onclick="setTimeRange('7d', this)">T-7D</button>
+                    <button class="btn btn-custom" onclick="setTimeRange('30d', this)">T-30D</button>
+                    <button class="btn btn-custom" onclick="setTimeRange('all', this)">FULL HISTORY</button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel p-2 text-center h-100 d-flex align-items-center justify-content-center">
+                    <span class="text-secondary small me-2">SYSTEM STATUS:</span>
+                    <span class="text-success fw-bold font-monospace">NOMINAL</span>
+                </div>
             </div>
         </div>
 
-        <!-- Composition & Temp Chart -->
-        <div class="col-lg-4">
-            <div class="card p-3">
-                <h5 class="mb-3"><i class="bi bi-thermometer-half"></i> Composition & Temp</h5>
-                <div id="compChart" style="height: 190px; margin-bottom: 20px;"></div>
-                <div id="tempChart" style="height: 190px;"></div>
+        <!-- Metric Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="glass-panel metric-card">
+                    <div class="metric-label">Solar Wind Speed</div>
+                    <div class="metric-value"><span id="metric-speed">---</span> <span class="fs-6 text-muted">km/s</span></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel metric-card safe">
+                    <div class="metric-label">Proton Density</div>
+                    <div class="metric-value"><span id="metric-density">---</span> <span class="fs-6 text-muted">p/cm³</span></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel metric-card danger">
+                    <div class="metric-label">Next 1H Forecast</div>
+                    <div class="metric-value" style="color: var(--accent-gold);">
+                        <span id="metric-forecast">---</span>
+                    </div>
+                    {% if user.is_scientist() %}
+                    <button class="btn btn-sm btn-outline-warning w-100 mt-2" style="font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#feedbackModal">
+                        CORRECT PREDICTION
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel metric-card">
+                    <div class="metric-label">Active Alerts</div>
+                    <div class="metric-value text-danger"><span id="metric-alerts">0</span></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Alerts Table Row -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card p-3">
-                <h5 class="mb-3"><i class="bi bi-list-ul"></i> Mission Log & Anomalies</h5>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover">
-                        <thead>
-                            <tr>
-                                <th>Timestamp (UTC)</th>
-                                <th>Severity</th>
-                                <th>Event Details</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="alert-table-body">
-                            <!-- Rows injected by JS -->
-                        </tbody>
-                    </table>
+        <!-- Main Dashboard Grid -->
+        <div class="row g-4">
+            <!-- Left: Charts -->
+            <div class="col-lg-8">
+                <!-- Data Loading Overlay -->
+                <div id="chart-loader" style="display:none; position: absolute; z-index: 10; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); text-align: center; padding-top: 100px;">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <div class="text-info mt-2 small font-monospace">FETCHING TELEMETRY...</div>
+                </div>
+
+                <div class="glass-panel chart-container mb-4 position-relative">
+                    <h6 class="text-info font-monospace small mb-2">SOLAR WIND SPEED (km/s)</h6>
+                    <div id="speedChart" style="width:100%; height:300px;"></div>
+                </div>
+                
+                <div class="glass-panel chart-container mb-4">
+                     <h6 class="text-warning font-monospace small mb-2">PROTON DENSITY (p/cm³)</h6>
+                    <div id="densityChart" style="width:100%; height:250px;"></div>
+                </div>
+
+                <!-- Mini Charts Row -->
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="glass-panel p-3" style="height: 250px;">
+                            <div id="compChart" style="width:100%; height:100%;"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="glass-panel p-3" style="height: 250px;">
+                            <div id="tempChart" style="width:100%; height:100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Event Log & Anomalies -->
+            <div class="col-lg-4">
+                <div class="glass-panel h-100 p-0 overflow-hidden d-flex flex-column">
+                    <div class="p-3 border-bottom border-dark bg-dark bg-opacity-50">
+                        <h6 class="m-0 text-info font-monospace"><i class="bi bi-exclamation-triangle me-2"></i>EVENT LOG</h6>
+                    </div>
+                    <div class="table-responsive flex-grow-1">
+                        <table class="table table-dark table-hover table-custom mb-0">
+                            <thead>
+                                <tr>
+                                    <th>TIME (UTC)</th>
+                                    <th>SEV</th>
+                                    <th>DETAILS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alert-table-body">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    // --- CONFIGURATION ---
-    const PLOT_BG = '#1e293b';
-    const PAPER_BG = '#1e293b';
-    const TEXT_COLOR = '#94a3b8';
-    const GRID_COLOR = '#334155';
-    
-    let datasetMaxDate = null;
-    let datasetMinDate = null;
+    <!-- Scientist Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-panel text-light">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title font-monospace">RLHF FEEDBACK LOOP</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Help the AI learn by correcting the forecast.</p>
+                    <div class="mb-3">
+                        <label>AI Prediction</label>
+                        <input type="text" id="fb-ai-pred" class="form-control bg-dark text-white border-secondary" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label>Corrected Value (km/s)</label>
+                        <input type="number" id="fb-human-pred" class="form-control bg-dark text-white border-info">
+                    </div>
+                    <div class="mb-3">
+                        <label>Notes</label>
+                        <textarea id="fb-notes" class="form-control bg-dark text-white border-secondary" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
+                    <button type="button" class="btn btn-info" onclick="submitFeedback()">TRANSMIT CORRECTION</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initDashboard();
-    });
+    <!-- Script Init (Bootstrap) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    async function initDashboard() {
-        try {
-            // 1. Get Metadata (Min/Max Dates)
-            const metaRes = await fetch('/api/metadata');
-            const meta = await metaRes.json();
-            datasetMaxDate = new Date(meta.max_date);
-            datasetMinDate = new Date(meta.min_date);
-            
-            // 2. Load Initial Data (Default: Last 7 Days of available data)
-            await setTimeRange('7d');
-            
-            // 3. Load Alerts
-            await loadAlerts();
-            
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('last-updated').innerText = new Date().toLocaleTimeString();
-        } catch (error) {
-            console.error("Dashboard Init Failed:", error);
-            alert("Failed to load telemetry data.");
-        }
-    }
-    
-    async function setTimeRange(range) {
-        if (!datasetMaxDate) return;
-        
-        // Update Buttons UI
-        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
-        document.getElementById(`btn-${range}`).classList.add('active');
-        
-        let start = new Date(datasetMaxDate);
-        let end = new Date(datasetMaxDate);
-        
-        if (range === '24h') {
-            start.setHours(start.getHours() - 24);
-        } else if (range === '7d') {
-            start.setDate(start.getDate() - 7);
-        } else if (range === '30d') {
-            start.setDate(start.getDate() - 30);
-        } else if (range === 'all') {
-            start = new Date(datasetMinDate);
-        }
-        
-        // Format for API (Full ISO String to keep precision)
-        const startStr = start.toISOString();
-        const endStr = end.toISOString(); 
-        
-        await loadTelemetry(startStr, endStr);
-    }
+    <!-- Ingest Modal -->
+    <div class="modal fade" id="ingestModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title font-monospace text-info">DATA INGESTION PROTOCOL</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                     <ul class="nav nav-tabs border-bottom-0 mb-3" id="ingestTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active text-info bg-transparent border-info" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-pane" type="button">FILE UPLOAD (.CDF)</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-warning bg-transparent border-warning ms-2" id="scrape-tab" data-bs-toggle="tab" data-bs-target="#scrape-pane" type="button">CACTUS SCRAPER</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="ingestContent">
+                        <!-- File Upload Pane -->
+                        <div class="tab-pane fade show active" id="file-pane">
+                            <div class="mb-3">
+                                <label for="cdfFileResult" class="form-label text-secondary">Select CDF Files</label>
+                                <input class="form-control bg-dark text-white border-secondary" type="file" id="cdfFileInput" accept=".cdf" multiple>
+                            </div>
+                            <div class="alert alert-dark small">
+                                <i class="bi bi-info-circle me-2"></i>Files will be processed by <code>feeder.py</code> in the background.
+                            </div>
+                            <button onclick="submitIngest('file')" class="btn btn-outline-info w-100">INITIATE UPLOAD</button>
+                        </div>
+                        
+                        <!-- Scraper Pane -->
+                        <div class="tab-pane fade" id="scrape-pane">
+                            <div class="mb-3">
+                                <label class="form-label text-secondary">Scrape Trigger</label>
+                                <p class="small text-muted">Runs <code>cactus_scraper.py</code> to fetch latest events from SOHO/LASCO catalog.</p>
+                            </div>
+                            <button onclick="submitIngest('scrape')" class="btn btn-outline-warning w-100">RUN SCRAPER</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    async function loadTelemetry(start, end) {
-        // Show loading state if needed
-        const response = await fetch(`/api/telemetry?start=${start}&end=${end}`);
-        const data = await response.json();
+    <!-- Job Progress Modal -->
+    <div class="modal fade" id="jobModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title font-monospace text-info">SYSTEM PROCESS</h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="spinner-border text-info mb-3" role="status"></div>
+                    <h4 id="job-status-text" class="mb-2">INITIALIZING...</h4>
+                    <p class="text-secondary small">This operation is running in the background.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        if (data.length === 0) {
-            console.warn("No data for this range");
-            return;
-        }
+    <!-- CME History Modal -->
+    <div class="modal fade" id="cmeHistoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title font-monospace text-info">CME EVENT REGISTRY</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <input type="date" id="cme-filter-start" class="form-control">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="date" id="cme-filter-end" class="form-control">
+                        </div>
+                        <div class="col-md-2">
+                            <button onclick="loadCMEHistory()" class="btn btn-outline-info w-100">FILTER</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="max-height: 400px;">
+                        <table class="table table-dark table-hover table-custom">
+                            <thead class="sticky-top bg-dark">
+                                <tr>
+                                    <th>START TIME</th>
+                                    <th>TYPE</th>
+                                    <th>SOURCE</th>
+                                    <th>NOTE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cme-table-body">
+                                <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        // Prepare Data Arrays
-        const times = data.map(d => d.observation_time);
-        const speeds = data.map(d => d.proton_speed);
-        const densities = data.map(d => d.proton_density);
-        const temps = data.map(d => d.proton_thermal_speed);
-        const alphaRatios = data.map(d => d.alpha_ratio * 100); // Convert to %
-
-        // Update Summary Metrics (Based on visible data)
-        document.getElementById('max-speed').innerText = Math.max(...speeds).toFixed(0);
-        document.getElementById('max-density').innerText = Math.max(...densities).toFixed(1);
-        document.getElementById('max-alpha').innerText = Math.max(...alphaRatios).toFixed(1);
-
-        // --- CHART 1: Speed vs Density (Dual Axis) ---
-        const traceSpeed = {
-            x: times, y: speeds,
-            name: 'Proton Speed (km/s)',
-            type: 'scatter', mode: 'lines',
-            line: { color: '#ef4444', width: 2 }
-        };
-
-        const traceDensity = {
-            x: times, y: densities,
-            name: 'Density (#/cm³)',
-            yaxis: 'y2',
-            type: 'scatter', mode: 'lines',
-            fill: 'tozeroy',
-            line: { color: '#3b82f6', width: 1 }
-        };
-
-        const layoutPlasma = {
-            paper_bgcolor: PAPER_BG, plot_bgcolor: PLOT_BG,
-            font: { color: TEXT_COLOR },
-            margin: { t: 10, l: 50, r: 50, b: 40 },
-            xaxis: { gridcolor: GRID_COLOR, showgrid: false },
-            yaxis: { 
-                title: 'Speed (km/s)', 
-                gridcolor: GRID_COLOR,
-                titlefont: { color: '#ef4444' },
-                tickfont: { color: '#ef4444' }
-            },
-            yaxis2: {
-                title: 'Density (#/cm³)',
-                overlaying: 'y', side: 'right',
-                gridcolor: GRID_COLOR,
-                titlefont: { color: '#3b82f6' },
-                tickfont: { color: '#3b82f6' }
-            },
-            legend: { orientation: 'h', y: 1.1 }
-        };
-
-        Plotly.newPlot('plasmaChart', [traceDensity, traceSpeed], layoutPlasma, {responsive: true});
-
-        // --- CHART 2: Alpha Ratio ---
-        const traceAlpha = {
-            x: times, y: alphaRatios,
-            name: 'Alpha Ratio (%)',
-            type: 'scatter', mode: 'lines',
-            line: { color: '#f97316', width: 2 }
-        };
-        
-        const layoutComp = {
-            title: { text: 'Alpha/Proton Ratio (%)', font: { size: 12, color: TEXT_COLOR } },
-            paper_bgcolor: PAPER_BG, plot_bgcolor: PLOT_BG,
-            font: { color: TEXT_COLOR },
-            margin: { t: 30, l: 40, r: 20, b: 30 },
-            xaxis: { showticklabels: false, gridcolor: GRID_COLOR },
-            yaxis: { gridcolor: GRID_COLOR }
-        };
-        
-        Plotly.newPlot('compChart', [traceAlpha], layoutComp, {responsive: true});
-
-        // --- CHART 3: Temperature ---
-        const traceTemp = {
-            x: times, y: temps,
-            name: 'Thermal Speed (km/s)',
-            type: 'scatter', mode: 'lines',
-            line: { color: '#22c55e', width: 1.5 }
-        };
-
-        const layoutTemp = {
-            title: { text: 'Proton Thermal Speed (km/s)', font: { size: 12, color: TEXT_COLOR } },
-            paper_bgcolor: PAPER_BG, plot_bgcolor: PLOT_BG,
-            font: { color: TEXT_COLOR },
-            margin: { t: 30, l: 40, r: 20, b: 30 },
-            xaxis: { gridcolor: GRID_COLOR },
-            yaxis: { gridcolor: GRID_COLOR }
-        };
-
-        Plotly.newPlot('tempChart', [traceTemp], layoutTemp, {responsive: true});
-    }
-    
-    // Function to Zoom into an Event
-    async function analyzeEvent(startTime, endTime) {
-        // Add a small buffer (e.g., 6 hours) around the event for context
-        const start = new Date(startTime);
-        start.setHours(start.getHours() - 6);
-        
-        const end = new Date(endTime);
-        end.setHours(end.getHours() + 6);
-        
-        // Format for API
-        const startStr = start.toISOString();
-        const endStr = end.toISOString();
-        
-        // 1. Load the specific data for this event from the server
-        await loadTelemetry(startStr, endStr);
-        
-        // 2. Update Buttons UI to show we are in a custom mode
-        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
-        
-        // 3. Scroll to top to see the graph
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    async function loadAlerts() {
-        const response = await fetch('/api/alerts');
-        const alerts = await response.json();
-
-        document.getElementById('event-count').innerText = alerts.length;
-        const tableBody = document.getElementById('alert-table-body');
-        
-        // Update System Status based on recent alerts
-        if (alerts.length > 0) {
-            const statusBadge = document.getElementById('system-status');
-            statusBadge.className = 'status-badge status-danger';
-            statusBadge.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> ALERT ACTIVE';
-        }
-
-        alerts.forEach(alert => {
-            const date = new Date(alert.generated_at).toLocaleString();
-            const badgeClass = alert.severity === 'HIGH' ? 'bg-danger' : 'bg-warning text-dark';
-            
-            // Pass the raw timestamp to the analyze function
-            const row = `
-                <tr>
-                    <td><span class="text-white fw-bold">${date}</span></td>
-                    <td><span class="badge ${badgeClass}">${alert.severity}</span></td>
-                    <td>${alert.message}</td>
-                    <td><button class="btn btn-sm btn-outline-light" onclick="analyzeEvent('${alert.generated_at}', '${alert.end_time}')"><i class="bi bi-search"></i> Analyze</button></td>
-                </tr>
-            `;
-            tableBody.innerHTML += row;
+    <script>
+        // --- ANIMATIONS ---
+        var anim = lottie.loadAnimation({
+            container: document.getElementById('lottie-loader'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: 'https://lottie.host/4b8a2134-8c08-4e33-9112-9c9e830f854a/ExampleSolar.json' // Placeholder Lottie URL, usually I'd pick a specific sun one
         });
-    }
-</script>
+        
+        // Use a generic spinner if lottie fails or just hide overlay after load
+        setTimeout(() => {
+            document.getElementById('loading-overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading-overlay').remove(), 500);
+            initDashboard();
+        }, 1500);
 
+        // --- DASHBOARD LOGIC ---
+        let currentForecast = null;
+        let systemTimeObj = new Date(); // Default to now, will override with DB time
+
+        async function initDashboard() {
+            try {
+                // 1. Get the latest data timestamp from DB
+                const res = await fetch('/api/system-status');
+                const status = await res.json();
+                
+                if (status.latest_data_time) {
+                    systemTimeObj = new Date(status.latest_data_time);
+                    console.log("System Time Synced:", systemTimeObj);
+                }
+            } catch (e) {
+                console.warn("Failed to sync system time, using wall clock.");
+            }
+
+            setTimeRange('24h', document.getElementById('btn-24h'));
+            loadAlerts();
+            loadForecast();
+        }
+
+        async function setTimeRange(range, btnElement) {
+             // Visual toggle
+            if(btnElement) {
+                document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+                btnElement.classList.add('active');
+            }
+
+            // Copy system time to create range anchor
+            let end = new Date(systemTimeObj); 
+            let start = new Date(systemTimeObj);
+            
+            if (range === '24h') start.setHours(start.getHours() - 24);
+            if (range === '7d') start.setDate(start.getDate() - 7);
+            if (range === '30d') start.setDate(start.getDate() - 30);
+            
+            // If T-All, we set start way back
+            if (range === 'all') start.setFullYear(2000); // effectively get everything
+            
+            await loadTelemetry(start.toISOString(), end.toISOString());
+        }
+
+        async function loadTelemetry(start, end) {
+            document.getElementById('chart-loader').style.display = 'block';
+            document.body.style.cursor = 'wait';
+            
+            try {
+                const res = await fetch(`/api/telemetry?start=${start}&end=${end}`);
+                const data = await res.json();
+                
+                if (!data.time.length) return;
+
+                // Update Metrics
+                const lastIdx = data.speed.length - 1;
+                document.getElementById('metric-speed').innerText = Math.round(data.speed[lastIdx]);
+                document.getElementById('metric-density').innerText = data.density[lastIdx].toFixed(2);
+
+                renderCharts(data);
+            } catch(e) {
+                console.error(e);
+            } finally {
+                document.getElementById('chart-loader').style.display = 'none';
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function renderCharts(data) {
+            const fontConfig = { family: 'Share Tech Mono', color: '#cbd5e1' };
+            const gridColor = 'rgba(255,255,255,0.1)';
+            const margin = { t: 20, l: 40, r: 20, b: 40 };
+
+             // Speed Chart
+             Plotly.newPlot('speedChart', [
+                {
+                    x: data.time,
+                    y: data.speed,
+                    name: 'Speed',
+                    type: 'scatter',
+                    line: { color: '#38bdf8', width: 2 },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(56, 189, 248, 0.1)'
+                }
+            ], {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                showlegend: false,
+                margin: margin,
+                xaxis: { gridcolor: gridColor, tickfont: fontConfig },
+                yaxis: { title: 'Speed (km/s)', gridcolor: gridColor, tickfont: fontConfig, titlefont: fontConfig }
+            }, {responsive: true, displayModeBar: false});
+
+            // Density Chart
+            Plotly.newPlot('densityChart', [
+                 {
+                    x: data.time,
+                    y: data.density,
+                    name: 'Density',
+                    type: 'scatter',
+                    line: { color: '#fbbf24', width: 2 },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(251, 191, 36, 0.2)'
+                }
+            ], {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                showlegend: false,
+                margin: margin,
+                xaxis: { gridcolor: gridColor, tickfont: fontConfig },
+                yaxis: { title: 'Density (p/cm³)', gridcolor: gridColor, tickfont: fontConfig, titlefont: fontConfig }
+            }, {responsive: true, displayModeBar: false});
+
+            // Ratio Chart
+            Plotly.newPlot('compChart', [{
+                x: data.time, y: data.alpha_ratio,
+                type: 'scatter', line: { color: '#f43f5e' },
+                fill: 'tozeroy'
+            }], {
+                title: { text: 'ALPHA RATIO', font: fontConfig, font: {size: 12} },
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 40, l: 30, r: 20, b: 30 },
+                xaxis: { showticklabels: false, gridcolor: gridColor },
+                yaxis: { gridcolor: gridColor, tickfont: fontConfig }
+            }, {responsive: true, displayModeBar: false});
+            
+             // Temp Chart
+            Plotly.newPlot('tempChart', [{
+                x: data.time, y: data.temperature,
+                type: 'scatter', line: { color: '#22c55e' }
+            }], {
+                title: { text: 'TEMP (K)', font: fontConfig, font: {size: 12} },
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 40, l: 30, r: 20, b: 30 },
+                xaxis: { showticklabels: false, gridcolor: gridColor },
+                yaxis: { gridcolor: gridColor, tickfont: fontConfig }
+            }, {responsive: true, displayModeBar: false});
+        }
+
+        async function loadForecast() {
+            try {
+                const res = await fetch('/api/forecast');
+                const data = await res.json();
+                
+                if (data.error) {
+                    document.getElementById('metric-forecast').innerText = "N/A";
+                    return;
+                }
+                
+                // Get the first prediction for the card
+                const firstPred = data.predictions[0];
+                document.getElementById('metric-forecast').innerText = Math.round(firstPred.speed);
+                currentForecast = data.predictions[0];
+                currentForecast.last_observed_time = data.last_observed_time; // Attach context
+
+                // Add prediction line to Speed Chart
+                const predTimes = data.predictions.map(p => p.time);
+                const predSpeeds = data.predictions.map(p => p.speed);
+
+                Plotly.addTraces('speedChart', {
+                    x: predTimes,
+                    y: predSpeeds,
+                    mode: 'lines+markers',
+                    name: 'AI Forecast (6H)',
+                    line: { color: '#22c55e', dash: 'dot', width: 3 }, // Green for forecast
+                    marker: { size: 6, color: '#22c55e' }
+                });
+                
+                // Update Modal with first prediction
+                document.getElementById('fb-ai-pred').value = firstPred.speed.toFixed(2);
+                
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAlerts() {
+            const res = await fetch('/api/alerts');
+            const data = await res.json();
+            
+            // Handle new structure { total: N, recent: [...] }
+            document.getElementById('metric-alerts').innerText = data.total || 0;
+            
+            const list = data.recent || data; // Fallback if old API
+            const html = list.map(a => `
+                <tr>
+                    <td>${new Date(a.generated_at).toLocaleString()}</td>
+                    <td><span class="badge ${a.severity === 'HIGH' ? 'bg-danger' : 'bg-warning'}">${a.severity}</span></td>
+                    <td class="text-truncate" style="max-width: 150px;">${a.message}</td>
+                </tr>
+            `).join('');
+            document.getElementById('alert-table-body').innerHTML = html;
+        }
+
+        async function submitIngest(mode) {
+            const formData = new FormData();
+            formData.append('mode', mode);
+            
+            if(mode === 'file') {
+                const files = document.getElementById('cdfFileInput').files;
+                if(files.length === 0) return alert("Please select at least one .cdf file.");
+                for(let i=0; i<files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+            }
+            
+            // Close Ingest Modal, Open Job Modal
+            new bootstrap.Modal(document.getElementById('ingestModal')).hide();
+            const jobModal = new bootstrap.Modal(document.getElementById('jobModal'));
+            document.getElementById('job-status-text').innerText = "INITIATING UPLOAD...";
+            jobModal.show();
+            
+            try {
+                const res = await fetch('/api/ingest', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if(data.status === 'started') {
+                    document.getElementById('job-status-text').innerText = "PROCESSING: " + data.message;
+                    setTimeout(() => { jobModal.hide(); }, 3000); // Hide after 3s for demo
+                } else {
+                    alert(data.error || "Upload Failed");
+                    jobModal.hide();
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Upload Error");
+                jobModal.hide();
+            }
+        }
+
+        // --- SCIENTIST FUNCTIONS ---
+        async function runScript(scriptName) {
+            if(!confirm(`Authorize execution of: ${scriptName}.py?`)) return;
+            
+            // Show Status Modal
+            const modal = new bootstrap.Modal(document.getElementById('jobModal'));
+            document.getElementById('job-status-text').innerText = scriptName === 'feeder' ? "INGESTING SATELLITE DATA..." : "TRAINING NEURAL NETWORK...";
+            modal.show();
+
+            try {
+                const res = await fetch('/api/run-script', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({script: scriptName})
+                });
+                const data = await res.json();
+                
+                // Keep modal for a second then close or update
+                setTimeout(() => {
+                    modal.hide();
+                    if(data.error) alert("Error: " + data.error);
+                    else alert("Process initiated successfully. Check logs for completion.");
+                }, 2000);
+            } catch(e) {
+                modal.hide();
+                alert("Connection Error");
+            }
+        }
+
+        function showCMEHistory() {
+            const modal = new bootstrap.Modal(document.getElementById('cmeHistoryModal'));
+            modal.show();
+            loadCMEHistory();
+        }
+
+        async function loadCMEHistory() {
+            const start = document.getElementById('cme-filter-start').value;
+            const end = document.getElementById('cme-filter-end').value;
+            
+            let url = '/api/cme-history';
+            if(start && end) url += `?start=${start}&end=${end}`;
+            
+            const res = await fetch(url);
+            const events = await res.json();
+            
+            const html = events.map(e => `
+                <tr>
+                    <td>${new Date(e.start).toLocaleString()}</td>
+                    <td>${e.type}</td>
+                    <td>${e.source || 'N/A'}</td>
+                    <td>${e.note || '-'}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('cme-table-body').innerHTML = events.length ? html : '<tr><td colspan="4" class="text-center">No Events Found</td></tr>';
+        }
+
+        async function submitFeedback() {
+            const corrected = document.getElementById('fb-human-pred').value;
+            const comments = document.getElementById('fb-notes').value;
+            
+            if(!corrected) return alert("Enter a value.");
+
+            await fetch('/api/submit-feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    time: currentForecast.last_observed_time,
+                    predicted: currentForecast.predicted_speed,
+                    corrected: parseFloat(corrected),
+                    comment: comments
+                })
+            });
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+            modal.hide();
+            alert("Feedback Looped. Model will incorporate variance in next epoch.");
+        }
+    </script>
 </body>
 </html>

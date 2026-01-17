@@ -1,15 +1,13 @@
 import psycopg2
+import os
+from dotenv import load_dotenv
 
-DB_CONFIG = {
-    "dbname": "solar_db",
-    "user": "postgres",
-    "password": "Abhyuday@postgresql", 
-    "host": "127.0.0.1",
-    "port": "5433"
-}
+load_dotenv()
+
+DB_URI = os.getenv('DB_URI')
 
 try:
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(DB_URI)
     cursor = conn.cursor()
     
     # List all tables
