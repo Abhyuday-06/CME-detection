@@ -20,14 +20,27 @@
     
     <style>
         :root {
-            --bg-dark: #070b14;
-            --panel-bg: rgba(22, 27, 40, 0.9); /* More opaque for contrast */
-            --border-color: rgba(64, 166, 255, 0.3);
-            --accent-gold: #fbbf24; /* Brighter Gold */
-            --accent-blue: #38bdf8; /* Brighter Blue */
-            --accent-red: #f43f5e; /* Brighter Red */
+            --bg-dark: #0a0e1a;
+            --bg-darker: #050810;
+            --panel-bg: rgba(15, 20, 35, 0.95);
+            --panel-hover: rgba(20, 25, 40, 0.98);
+            --border-color: rgba(0, 240, 255, 0.15);
+            --border-hover: rgba(0, 240, 255, 0.4);
+            --accent-gold: #FDB813;
+            --accent-blue: #00F0FF;
+            --accent-cyan: #22d3ee;
+            --accent-red: #f43f5e;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
             --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1; /* Brighter secondary text */
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
@@ -35,72 +48,160 @@
             color: var(--text-primary);
             font-family: 'Rajdhani', sans-serif;
             overflow-x: hidden;
-            background-image: radial-gradient(circle at 50% 10%, rgba(20, 50, 100, 0.2) 0%, transparent 70%);
+            background-image: 
+                radial-gradient(circle at 20% 10%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0, 240, 255, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 40% 60%, rgba(253, 184, 19, 0.04) 0%, transparent 40%);
+            min-height: 100vh;
+            max-width: 100vw;
         }
 
         /* Glassmorphism Panels */
         .glass-panel {
             background: var(--panel-bg);
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-x: hidden;
+        }
+
+        .glass-panel:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.1);
         }
 
         /* Navbar */
         .navbar {
-            background: rgba(7, 11, 20, 0.95);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0.8rem 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            background: linear-gradient(180deg, rgba(10, 14, 26, 0.98) 0%, rgba(10, 14, 26, 0.95) 100%);
+            border-bottom: 2px solid var(--border-color);
+            padding: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(0, 240, 255, 0.1);
+            backdrop-filter: blur(20px);
+        }
+        
+        @media (min-width: 768px) {
+            .navbar {
+                padding-left: 2rem;
+                padding-right: 2rem;
+            }
         }
 
         .navbar-brand {
             font-family: 'Share Tech Mono', monospace;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             color: #fff !important;
-            letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            letter-spacing: 3px;
+            font-weight: 700;
+            text-shadow: 0 0 15px rgba(0, 240, 255, 0.5), 0 0 30px rgba(0, 240, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .navbar-brand:hover {
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.8), 0 0 40px rgba(0, 240, 255, 0.3);
         }
 
         .logo-icon {
             color: var(--accent-gold);
-            filter: drop-shadow(0 0 8px var(--accent-gold));
+            filter: drop-shadow(0 0 10px var(--accent-gold));
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 10px var(--accent-gold)); }
+            50% { filter: drop-shadow(0 0 18px var(--accent-gold)); }
+        }
+
+        .user-badge {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .user-badge .username {
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+
+        .user-badge .role {
+            color: var(--accent-gold);
+            font-weight: 600;
         }
 
         /* Metrics Cards */
         .metric-card {
-            padding: 1.5rem;
-            transition: all 0.3s;
+            padding: 2rem 1.5rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
             height: 100%;
+            border-left: 4px solid transparent;
         }
         
         .metric-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 240, 255, 0.2);
             border-color: var(--accent-blue);
+            background: var(--panel-hover);
         }
         
         .metric-card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--accent-blue);
-            box-shadow: 0 0 10px var(--accent-blue);
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--accent-blue), var(--accent-cyan));
+            box-shadow: 0 0 15px var(--accent-blue);
         }
 
-        .metric-card.danger::before { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
-        .metric-card.safe::before { background: var(--accent-gold); box-shadow: 0 0 10px var(--accent-gold); }
+        .metric-card.danger::before {
+            background: linear-gradient(180deg, var(--accent-red), #dc2626);
+            box-shadow: 0 0 15px var(--accent-red);
+        }
+
+        .metric-card.safe::before {
+            background: linear-gradient(180deg, var(--accent-gold), #f59e0b);
+            box-shadow: 0 0 15px var(--accent-gold);
+        }
+
+        .metric-card.success::before {
+            background: linear-gradient(180deg, var(--accent-green), #059669);
+            box-shadow: 0 0 15px var(--accent-green);
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
 
         .metric-value {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: 700;
             font-family: 'Share Tech Mono', monospace;
-            margin: 0.5rem 0;
-            color: #fff;
-            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+            line-height: 1;
+            color: var(--text-primary);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .metric-value .unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 0.5rem;
         }
 
         .metric-label {
@@ -221,6 +322,25 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #050510; }
         ::-webkit-scrollbar-thumb { background: #334; border-radius: 4px; }
+        
+        /* Buttons */
+        .btn {
+            white-space: nowrap;
+        }
+        
+        /* Prevent horizontal overflow */
+        .row {
+            margin-left: 0;
+            margin-right: 0;
+        }
+        
+        .container-fluid {
+            overflow-x: hidden;
+        }
+        
+        .col, [class*="col-"] {
+            min-width: 0;
+        }
     </style>
 </head>
 <body>
@@ -239,40 +359,49 @@
             </a>
             
             <div class="d-flex align-items-center gap-3">
-                <span class="d-none d-md-block text-secondary font-monospace" style="font-size: 0.8rem;">
-                    USER: <span class="text-white">{{ user.username.upper() }} [{{ user.role.upper() }}]</span>
-                </span>
+                <div class="user-badge d-none d-md-block">
+                    <span class="text-secondary">USER:</span> 
+                    <span class="username">{{ user.username.upper() }}</span>
+                    <span class="text-secondary">|</span>
+                    <span class="role">{{ user.role.upper() }}</span>
+                </div>
                 
-                <a href="/logout" class="btn btn-sm btn-outline-secondary">LOGOUT</a>
+                <a href="/logout" class="btn btn-sm btn-outline-danger font-monospace" style="letter-spacing: 0.5px; padding: 0.35rem 0.75rem;"><i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">LOG</span>OUT</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid p-4">
+    <div class="container-fluid px-3 px-md-4 py-4" style="max-width: 100%;">
         
         <!-- SCIENTIST / ADMIN CONTROL PANEL -->
         {% if user.is_scientist() %}
         <div class="row mb-4">
             <div class="col-12">
-                <div class="glass-panel p-3 admin-controls-card d-flex align-items-center justify-content-between flex-wrap gap-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-shield-lock-fill text-warning fs-4 me-3"></i>
-                        <div>
-                            <h5 class="m-0">COMMAND CENTER</h5>
-                            <small class="text-muted">AUTHORIZED PERSONNEL ONLY</small>
+                <div class="glass-panel p-4 admin-controls-card">
+                    <div class="row align-items-center">
+                        <div class="col-lg-4 mb-3 mb-lg-0">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-shield-lock-fill fs-3 me-3" style="color: var(--accent-gold); filter: drop-shadow(0 0 10px var(--accent-gold));"></i>
+                                <div>
+                                    <h5 class="m-0 font-monospace">COMMAND CENTER</h5>
+                                    <small class="text-muted" style="letter-spacing: 1px;">AUTHORIZED PERSONNEL ONLY</small>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-info font-monospace" onclick="showCMEHistory()">
-                            <i class="bi bi-calendar-event me-2"></i>CME LOGS
-                        </button>
-                        <button class="btn btn-danger-custom font-monospace" data-bs-toggle="modal" data-bs-target="#ingestModal">
-                            <i class="bi bi-cloud-upload me-2"></i>INGEST DATA
-                        </button>
-                        <button class="btn btn-danger-custom font-monospace" onclick="runScript('train')">
-                            <i class="bi bi-cpu me-2"></i>RETRAIN MODEL
-                        </button>
+                        
+                        <div class="col-lg-8">
+                            <div class="d-flex gap-2 justify-content-lg-end flex-wrap">
+                                <button class="btn btn-outline-info font-monospace" onclick="showCMEHistory()" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
+                                    <i class="bi bi-calendar-event me-1 me-md-2"></i><span class="d-none d-sm-inline">CME </span>LOGS
+                                </button>
+                                <button class="btn btn-danger-custom font-monospace" data-bs-toggle="modal" data-bs-target="#ingestModal" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
+                                    <i class="bi bi-cloud-upload me-1 me-md-2"></i>INGEST<span class="d-none d-sm-inline"> DATA</span>
+                                </button>
+                                <button class="btn btn-danger-custom font-monospace" onclick="runScript('train')" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
+                                    <i class="bi bi-cpu me-1 me-md-2"></i>RETRAIN<span class="d-none d-sm-inline"> MODEL</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -280,54 +409,91 @@
         {% endif %}
 
         <!-- Status Bar -->
-        <div class="row mb-4">
-            <div class="col-md-9">
-                <div class="btn-group w-100 glass-panel p-1">
-                    <button id="btn-24h" class="btn btn-custom active" onclick="setTimeRange('24h', this)">T-24H</button>
-                    <button class="btn btn-custom" onclick="setTimeRange('7d', this)">T-7D</button>
-                    <button class="btn btn-custom" onclick="setTimeRange('30d', this)">T-30D</button>
-                    <button class="btn btn-custom" onclick="setTimeRange('all', this)">FULL HISTORY</button>
+        <div class="row mb-4 g-3">
+            <div class="col-lg-9">
+                <div class="glass-panel p-2">
+                    <div class="d-flex flex-wrap gap-2 w-100">
+                        <button id="btn-24h" class="btn btn-custom active flex-fill" onclick="setTimeRange('24h', this)" style="padding: 0.75rem; font-size: 0.9rem;">
+                            <i class="bi bi-clock me-1 me-md-2"></i><span class="d-none d-sm-inline">T-</span>24H
+                        </button>
+                        <button class="btn btn-custom flex-fill" onclick="setTimeRange('7d', this)" style="padding: 0.75rem; font-size: 0.9rem;">
+                            <i class="bi bi-calendar-week me-1 me-md-2"></i><span class="d-none d-sm-inline">T-</span>7D
+                        </button>
+                        <button class="btn btn-custom flex-fill" onclick="setTimeRange('30d', this)" style="padding: 0.75rem; font-size: 0.9rem;">
+                            <i class="bi bi-calendar-month me-1 me-md-2"></i><span class="d-none d-sm-inline">T-</span>30D
+                        </button>
+                        <button class="btn btn-custom flex-fill" onclick="setTimeRange('all', this)" style="padding: 0.75rem; font-size: 0.9rem;">
+                            <i class="bi bi-database me-1 me-md-2"></i><span class="d-none d-sm-inline">FULL </span>HISTORY
+                        </button>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="glass-panel p-2 text-center h-100 d-flex align-items-center justify-content-center">
-                    <span class="text-secondary small me-2">SYSTEM STATUS:</span>
-                    <span class="text-success fw-bold font-monospace">NOMINAL</span>
+            <div class="col-lg-3">
+                <div class="glass-panel p-3 h-100 d-flex align-items-center justify-content-center">
+                    <div class="text-center w-100">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-activity" style="color: var(--accent-green); font-size: 1.2rem;"></i>
+                            <div>
+                                <div class="text-secondary small font-monospace mb-1" style="font-size: 0.7rem; letter-spacing: 1px;">SYSTEM STATUS</div>
+                                <div class="text-success fw-bold font-monospace" style="font-size: 1.1rem; letter-spacing: 2px;">NOMINAL</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Metric Cards -->
         <div class="row g-4 mb-4">
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-6">
                 <div class="glass-panel metric-card">
-                    <div class="metric-label">Solar Wind Speed</div>
-                    <div class="metric-value"><span id="metric-speed">---</span> <span class="fs-6 text-muted">km/s</span></div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="metric-label">Solar Wind Speed</div>
+                        <i class="bi bi-wind" style="font-size: 1.5rem; color: var(--accent-blue); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value">
+                        <span id="metric-speed">---</span> 
+                        <span class="unit">km/s</span>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-6">
                 <div class="glass-panel metric-card safe">
-                    <div class="metric-label">Proton Density</div>
-                    <div class="metric-value"><span id="metric-density">---</span> <span class="fs-6 text-muted">p/cm³</span></div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="metric-label">Proton Density</div>
+                        <i class="bi bi-droplet" style="font-size: 1.5rem; color: var(--accent-gold); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value">
+                        <span id="metric-density">---</span> 
+                        <span class="unit">p/cm³</span>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-6">
                 <div class="glass-panel metric-card danger">
-                    <div class="metric-label">Next 1H Forecast</div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="metric-label">Next 1H Forecast</div>
+                        <i class="bi bi-graph-up-arrow" style="font-size: 1.5rem; color: var(--accent-red); opacity: 0.5;"></i>
+                    </div>
                     <div class="metric-value" style="color: var(--accent-gold);">
                         <span id="metric-forecast">---</span>
                     </div>
                     {% if user.is_scientist() %}
-                    <button class="btn btn-sm btn-outline-warning w-100 mt-2" style="font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#feedbackModal">
-                        CORRECT PREDICTION
+                    <button class="btn btn-sm btn-outline-warning w-100 mt-3 font-monospace" style="font-size: 0.75rem; letter-spacing: 1px;" data-bs-toggle="modal" data-bs-target="#feedbackModal">
+                        <i class="bi bi-pencil me-1"></i>CORRECT PREDICTION
                     </button>
                     {% endif %}
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="glass-panel metric-card">
-                    <div class="metric-label">Active Alerts</div>
-                    <div class="metric-value text-danger"><span id="metric-alerts">0</span></div>
+            <div class="col-lg-3 col-md-6">
+                <div class="glass-panel metric-card success">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="metric-label">Active Alerts</div>
+                        <i class="bi bi-bell" style="font-size: 1.5rem; color: var(--accent-green); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value text-danger">
+                        <span id="metric-alerts">0</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -614,9 +780,10 @@
         }
 
         function renderCharts(data) {
-            const fontConfig = { family: 'Share Tech Mono', color: '#cbd5e1' };
-            const gridColor = 'rgba(255,255,255,0.1)';
-            const margin = { t: 20, l: 40, r: 20, b: 40 };
+            const fontConfig = { family: 'Share Tech Mono', color: '#e2e8f0', size: 11 };
+            const titleFont = { family: 'Rajdhani', color: '#f1f5f9', size: 13, weight: 600 };
+            const gridColor = 'rgba(255,255,255,0.08)';
+            const margin = { t: 20, l: 50, r: 20, b: 40 };
 
              // Speed Chart
              Plotly.newPlot('speedChart', [
@@ -625,17 +792,40 @@
                     y: data.speed,
                     name: 'Speed',
                     type: 'scatter',
-                    line: { color: '#38bdf8', width: 2 },
+                    line: { color: '#38bdf8', width: 1.5 },
                     fill: 'tozeroy',
-                    fillcolor: 'rgba(56, 189, 248, 0.1)'
+                    fillcolor: 'rgba(56, 189, 248, 0.1)',
+                    hovertemplate: '<b>%{y:.2f} km/s</b><br>%{x}<extra></extra>'
                 }
             ], {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 showlegend: false,
                 margin: margin,
-                xaxis: { gridcolor: gridColor, tickfont: fontConfig },
-                yaxis: { title: 'Speed (km/s)', gridcolor: gridColor, tickfont: fontConfig, titlefont: fontConfig }
+                hovermode: 'x unified',
+                hoverlabel: {
+                    bgcolor: 'rgba(10, 14, 26, 0.95)',
+                    bordercolor: '#38bdf8',
+                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
+                },
+                xaxis: { 
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikecolor: 'rgba(0, 240, 255, 0.6)',
+                    spikethickness: 1,
+                    spikedash: 'solid'
+                },
+                yaxis: { 
+                    title: { text: 'Speed (km/s)', font: titleFont },
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: false
+                }
             }, {responsive: true, displayModeBar: false});
 
             // Density Chart
@@ -645,42 +835,109 @@
                     y: data.density,
                     name: 'Density',
                     type: 'scatter',
-                    line: { color: '#fbbf24', width: 2 },
+                    line: { color: '#fbbf24', width: 1.5 },
                     fill: 'tozeroy',
-                    fillcolor: 'rgba(251, 191, 36, 0.2)'
+                    fillcolor: 'rgba(251, 191, 36, 0.2)',
+                    hovertemplate: '<b>%{y:.2f} p/cm³</b><br>%{x}<extra></extra>'
                 }
             ], {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 showlegend: false,
                 margin: margin,
-                xaxis: { gridcolor: gridColor, tickfont: fontConfig },
-                yaxis: { title: 'Density (p/cm³)', gridcolor: gridColor, tickfont: fontConfig, titlefont: fontConfig }
+                hovermode: 'x unified',
+                hoverlabel: {
+                    bgcolor: 'rgba(10, 14, 26, 0.95)',
+                    bordercolor: '#fbbf24',
+                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
+                },
+                xaxis: { 
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikecolor: 'rgba(253, 184, 19, 0.6)',
+                    spikethickness: 1,
+                    spikedash: 'solid'
+                },
+                yaxis: { 
+                    title: { text: 'Density (p/cm³)', font: titleFont },
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: false
+                }
             }, {responsive: true, displayModeBar: false});
 
             // Ratio Chart
             Plotly.newPlot('compChart', [{
                 x: data.time, y: data.alpha_ratio,
-                type: 'scatter', line: { color: '#f43f5e' },
-                fill: 'tozeroy'
+                type: 'scatter', line: { color: '#f43f5e', width: 1.5 },
+                fill: 'tozeroy',
+                hovertemplate: '<b>%{y:.3f}</b><br>%{x}<extra></extra>'
             }], {
-                title: { text: 'ALPHA RATIO', font: fontConfig, font: {size: 12} },
+                title: { text: 'ALPHA RATIO', font: { family: 'Rajdhani', size: 13, color: '#f1f5f9', weight: 600 } },
                 paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 40, l: 30, r: 20, b: 30 },
-                xaxis: { showticklabels: false, gridcolor: gridColor },
-                yaxis: { gridcolor: gridColor, tickfont: fontConfig }
+                margin: { t: 40, l: 40, r: 20, b: 30 },
+                hovermode: 'x unified',
+                hoverlabel: {
+                    bgcolor: 'rgba(10, 14, 26, 0.95)',
+                    bordercolor: '#f43f5e',
+                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
+                },
+                xaxis: { 
+                    showticklabels: false, 
+                    gridcolor: gridColor,
+                    color: '#e2e8f0',
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikecolor: 'rgba(244, 63, 94, 0.6)',
+                    spikethickness: 1,
+                    spikedash: 'solid'
+                },
+                yaxis: { 
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: false
+                }
             }, {responsive: true, displayModeBar: false});
             
              // Temp Chart
             Plotly.newPlot('tempChart', [{
                 x: data.time, y: data.temperature,
-                type: 'scatter', line: { color: '#22c55e' }
+                type: 'scatter', line: { color: '#22c55e', width: 1.5 },
+                hovertemplate: '<b>%{y:.0f} K</b><br>%{x}<extra></extra>'
             }], {
-                title: { text: 'TEMP (K)', font: fontConfig, font: {size: 12} },
+                title: { text: 'TEMP (K)', font: { family: 'Rajdhani', size: 13, color: '#f1f5f9', weight: 600 } },
                 paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 40, l: 30, r: 20, b: 30 },
-                xaxis: { showticklabels: false, gridcolor: gridColor },
-                yaxis: { gridcolor: gridColor, tickfont: fontConfig }
+                margin: { t: 40, l: 40, r: 20, b: 30 },
+                hovermode: 'x unified',
+                hoverlabel: {
+                    bgcolor: 'rgba(10, 14, 26, 0.95)',
+                    bordercolor: '#22c55e',
+                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
+                },
+                xaxis: { 
+                    showticklabels: false, 
+                    gridcolor: gridColor,
+                    color: '#e2e8f0',
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikecolor: 'rgba(34, 197, 94, 0.6)',
+                    spikethickness: 1,
+                    spikedash: 'solid'
+                },
+                yaxis: { 
+                    gridcolor: gridColor, 
+                    tickfont: fontConfig,
+                    color: '#e2e8f0',
+                    showspikes: false
+                }
             }, {responsive: true, displayModeBar: false});
         }
 
