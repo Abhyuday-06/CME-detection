@@ -29,70 +29,109 @@
         }
 
         .login-card {
-            background: rgba(20, 20, 35, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 200, 255, 0.1);
-            border-radius: 12px;
+            background: rgba(15, 15, 30, 0.95);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 240, 255, 0.2);
+            border-radius: 16px;
             padding: 3rem;
             width: 100%;
-            max-width: 400px;
-            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+            max-width: 450px;
+            box-shadow: 0 8px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 240, 255, 0.1);
             animation: fadeIn 1s ease-out;
         }
 
         .brand-title {
             text-align: center;
             font-weight: 700;
-            font-size: 2rem;
+            font-size: 2.5rem;
             color: #ffffff;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
         }
 
         .brand-title span {
             color: #FDB813;
         }
 
+        .form-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            color: #00F0FF !important;
+        }
+
         .form-control {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(0, 240, 255, 0.2);
             color: white;
-            border-radius: 4px;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .form-control:focus {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #FDB813;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #00F0FF;
             color: white;
-            box-shadow: 0 0 10px rgba(253, 184, 19, 0.2);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            outline: none;
         }
 
         .btn-primary {
-            background: linear-gradient(45deg, #FDB813, #f59e0b);
+            background: linear-gradient(135deg, #FDB813, #f59e0b);
             border: none;
             width: 100%;
-            padding: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-            margin-top: 1rem;
-            border-radius: 4px;
+            padding: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-top: 1.5rem;
+            border-radius: 8px;
             color: #000;
+            font-size: 1rem;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(253, 184, 19, 0.3);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(45deg, #f59e0b, #d97706);
-            box-shadow: 0 0 15px rgba(253, 184, 19, 0.4);
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 6px 25px rgba(253, 184, 19, 0.5);
+            transform: translateY(-2px);
+            color: #000;
         }
 
         .role-badge {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin-top: 1rem;
-            opacity: 0.7;
-            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin: 0.5rem 0.25rem;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .link-signup {
+            color: #00F0FF;
+            font-size: 0.9rem;
+            text-decoration: none;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .link-signup:hover {
+            color: #FDB813;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
         }
 
         @keyframes fadeIn {
@@ -127,7 +166,7 @@
             </div>
             <button type="submit" class="btn btn-primary">AUTHENTICATE</button>
             <div class="text-center mt-3">
-                <a href="/signup" style="color: #00F0FF; font-size: 0.8rem; text-decoration: none;">REQUEST ACCESS (SIGN UP)</a>
+                <a href="/signup" class="link-signup">REQUEST ACCESS (SIGN UP)</a>
             </div>
         </form>
 

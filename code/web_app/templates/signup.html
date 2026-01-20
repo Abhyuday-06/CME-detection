@@ -11,11 +11,12 @@
             background-color: #050510;
             color: #e2e8f0;
             font-family: 'Rajdhani', sans-serif;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            padding: 2rem 0;
+            overflow-y: auto;
             position: relative;
         }
 
@@ -29,60 +30,113 @@
         }
 
         .login-card {
-            background: rgba(20, 20, 35, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 200, 255, 0.1);
-            border-radius: 12px;
+            background: rgba(15, 15, 30, 0.95);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 240, 255, 0.2);
+            border-radius: 16px;
             padding: 3rem;
             width: 100%;
-            max-width: 400px;
-            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+            max-width: 500px;
+            box-shadow: 0 8px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 240, 255, 0.1);
             animation: fadeIn 1s ease-out;
+            margin: 2rem auto;
+            position: relative;
+            z-index: 1;
         }
 
         .brand-title {
             text-align: center;
             font-weight: 700;
-            font-size: 2rem;
+            font-size: 2.5rem;
             color: #ffffff;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
         }
 
         .brand-title span {
             color: #FDB813;
         }
 
+        .form-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            color: #00F0FF !important;
+        }
+
         .form-control {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(0, 240, 255, 0.2);
             color: white;
-            border-radius: 4px;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        select.form-control {
+            background-color: rgba(255, 255, 255, 0.08);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300F0FF' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        select.form-control option {
+            background-color: #0a0a15;
+            color: #e2e8f0;
         }
 
         .form-control:focus {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #FDB813;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #00F0FF;
             color: white;
-            box-shadow: 0 0 10px rgba(253, 184, 19, 0.2);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            outline: none;
         }
 
         .btn-primary {
-            background: linear-gradient(45deg, #FDB813, #f59e0b);
+            background: linear-gradient(135deg, #FDB813, #f59e0b);
             border: none;
             width: 100%;
-            padding: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-            margin-top: 1rem;
-            border-radius: 4px;
+            padding: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-top: 1.5rem;
+            border-radius: 8px;
             color: #000;
+            font-size: 1rem;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(253, 184, 19, 0.3);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(45deg, #f59e0b, #d97706);
-            box-shadow: 0 0 15px rgba(253, 184, 19, 0.4);
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 6px 25px rgba(253, 184, 19, 0.5);
+            transform: translateY(-2px);
+            color: #000;
+        }
+
+        .link-login {
+            color: #00F0FF;
+            font-size: 0.9rem;
+            text-decoration: none;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .link-login:hover {
+            color: #FDB813;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
         }
 
         @keyframes fadeIn {
@@ -118,17 +172,18 @@
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label text-info small">USERNAME</label>
-                <input type="text" name="username" class="form-control" required placeholder="Choose a callsign...">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label text-info small">ACCESS LEVEL</label>
-                <select name="role" class="form-control" style="background-color: rgba(20, 20, 35, 0.9); color: #fff;">
-                    <option value="viewer">VIEWER (Read Only)</option>
-                    <option value="scientist">SCIENTIST (Data Access)</option>
-                </select>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-info small">USERNAME</label>
+                    <input type="text" name="username" class="form-control" required placeholder="Choose a callsign...">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-info small">ACCESS LEVEL</label>
+                    <select name="role" class="form-control">
+                        <option value="viewer">VIEWER (Read Only)</option>
+                        <option value="scientist">SCIENTIST (Data Access)</option>
+                    </select>
+                </div>
             </div>
             
             <div class="mb-3">
@@ -144,49 +199,26 @@
             <button type="submit" class="btn btn-primary">INITIALIZE ACCOUNT</button>
             
             <div class="text-center mt-3">
-                <a href="/login" style="color: #00F0FF; font-size: 0.8rem; text-decoration: none;">ALREADY HAVE AN ACCOUNT? LOGIN</a>
+                <a href="/login" class="link-login">ALREADY HAVE AN ACCOUNT? LOGIN</a>
             </div>
         </form>
     </div>
 
-    <!-- Particles.js script logic using minimal vanilla JS for the background -->
+    <!-- Particles Effect -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particlesjs/2.2.3/particles.min.js"></script>
     <script>
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Resize
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        // Stars
-        const stars = [];
-        for(let i=0; i<100; i++) {
-            stars.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                radius: Math.random() * 2,
-                alpha: Math.random()
-            })
-        }
-
-        function draw() {
-            ctx.fillStyle = '#050510';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#ffffff';
-            stars.forEach(s => {
-                ctx.globalAlpha = s.alpha;
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-                ctx.fill();
+        window.onload = function() {
+            Particles.init({
+                selector: '#bg-canvas',
+                color: ['#FDB813', '#ffffff', '#00F0FF'],
+                connectParticles: true,
+                maxParticles: 100,
+                speed: 0.3,
+                responsive: [
+                    { breakpoint: 768, options: { maxParticles: 50 } }
+                ]
             });
-            requestAnimationFrame(draw);
-        }
-        draw();
+        };
     </script>
 </body>
 </html>
