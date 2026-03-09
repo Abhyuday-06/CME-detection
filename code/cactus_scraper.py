@@ -83,14 +83,54 @@ def scrape_cactus(year, month):
     return pd.DataFrame(cme_data)
 
 if __name__ == "__main__":
-    for year in [2024, 2025, 2026]:
-        for month in range(1, 13):
-            print(f"\n--- Scraping CME Data for {year}-{month:02d} ---")
-            df_cme = scrape_cactus(year, month)
+    import argparse
+    from datetime import datetime
+
+    parser = argparse.ArgumentParser(description="Scrape CACTUS CME data.")
+    parser.add_argument("--start", type=str, help="Start date (YYYY-MM)", default=None)
+    parser.add_argument("--end", type=str, help="End date (YYYY-MM)", default=None)
+    
+    args = parser.parse_args()
+
+    # Default range if not provided: 2024-01 to Present + 1 Month (to be safe)
+    start_year, start_month = 2024, 1
+    now = datetime.now()
+    end_year, end_month = now.year, now.month
+
+    if args.start:
+        try:
+            d_start = datetime.strptime(args.start, "%Y-%m")
+            start_year, start_month = d_start.year, d_start.month
+        except ValueError:
+            print("Invalid start date format. Use YYYY-MM")
+            exit(1)
+
+    if args.end:
+        try:
+            d_end = datetime.strptime(args.end, "%Y-%m")
+            end_year, end_month = d_end.year, d_end.month
+        except ValueError:
+            print("Invalid end date format. Use YYYY-MM")
+            exit(1)
+
+    print(f"Scraping range: {start_year}-{start_month:02d} to {end_year}-{end_month:02d}")
+
+    # Iterate through months
+    curr_y, curr_m = start_year, start_month
+    while (curr_y < end_year) or (curr_y == end_year and curr_m <= end_month):
+        print(f"\n--- Scraping CME Data for {curr_y}-{curr_m:02d} ---")
+        df_cme = scrape_cactus(curr_y, curr_m)
+        
+        if df_cme is not None and not df_cme.empty:
+            print(df_cme.head())
+            save_to_db(df_cme)
+        else:
+            print(f" No CME data found for {curr_y}-{curr_m:02d}.")
+
+        # Increment month
+        curr_m += 1
+        if curr_m > 12:
+            curr_m = 1
+            curr_y += 1
             
-            if df_cme is not None and not df_cme.empty:
-                print(df_cme.head())
-                save_to_db(df_cme)
-            else:
-                print(f" No CME data found for this {year} - {month:02d}.")
     print("\nScraping completed.")

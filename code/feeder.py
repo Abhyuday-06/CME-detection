@@ -62,6 +62,17 @@ def process_cdf_file(filepath):
         # Convert CDF Epoch to Python Datetime objects
         timestamps = cdflib.cdfepoch.to_datetime(epochs)
         
+        # --- LOOKUP INSTRUMENT ID ONLY ONCE ---
+        # Assuming we are dealing with Aditya-L1 SWIS for these files
+        cursor.execute("SELECT instrument_id FROM instruments WHERE name = 'ASPEX';")
+        res = cursor.fetchone()
+        instrument_id = res[0] if res else None
+        
+        # Fallback if seed data wasn't run
+        if not instrument_id:
+             print("Warning: Instrument 'ASPEX' not found. Defaulting to NULL.")
+        # -------------------------------------
+
         records_added = 0
         
         for i in range(len(timestamps)):
@@ -73,8 +84,8 @@ def process_cdf_file(filepath):
 
             sql = """
                 INSERT INTO swis_moments 
-                (observation_time, proton_density, proton_speed, proton_thermal_speed, alpha_density, alpha_speed, alpha_thermal_speed, sc_x, sc_y, sc_z)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (observation_time, proton_density, proton_speed, proton_thermal_speed, alpha_density, alpha_speed, alpha_thermal_speed, sc_x, sc_y, sc_z, instrument_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
             
@@ -100,7 +111,8 @@ def process_cdf_file(filepath):
                 float(a_temp[i]),
                 float(sc_x[i]),
                 float(sc_y[i]),
-                float(sc_z[i])
+                float(sc_z[i]),
+                instrument_id
             )
             
             cursor.execute(sql, data)

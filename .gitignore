@@ -2,5 +2,17 @@ venv/
 data/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .env
+.env.*
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+

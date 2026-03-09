@@ -198,21 +198,44 @@ def get_telemetry():
     end_date = request.args.get('end', '2024-10-15')
     
     conn = get_db_connection()
-    # Downsample for big ranges using modulo if needed, but LIMIT is safer for now
+    # Downsample for big ranges
     query = """
         SELECT observation_time, 
                proton_speed, proton_density, proton_thermal_speed, alpha_density,
                sc_x, sc_y, sc_z
         FROM swis_moments 
         WHERE observation_time BETWEEN %s AND %s
-        ORDER BY observation_time ASC
-        LIMIT 5000;
+        ORDER BY observation_time ASC;
     """
     df = pd.read_sql(query, conn, params=(start_date, end_date))
     conn.close()
     
     if df.empty:
         return jsonify({'time': [], 'speed': [], 'density': [], 'temperature': [], 'alpha_ratio': [], 'bx': [], 'by': [], 'bz': []})
+
+    # DOWNSAMPLE IF DATASET IS TOO LARGE (Target ~2000 points for UI performance)
+    if len(df) > 2000:
+        # Calculate dynamic interval (e.g., '10min', '1H', '1D') based on length
+        # Simple approaches: just resample by integer division of index or using time alias
+        
+        # Ensure datetime index
+        df['observation_time'] = pd.to_datetime(df['observation_time'])
+        df.set_index('observation_time', inplace=True)
+        
+        # Determine appropriate frequency roughly
+        total_duration = df.index.max() - df.index.min()
+        if total_duration.days > 30:
+            rule = '12h' # 2 points per day for multi-month
+        elif total_duration.days > 7:
+            rule = '1h'
+        elif total_duration.days > 1:
+            rule = '15min'
+        else:
+            rule = None # Shouldn't happen given len > 2000 for < 24h, but safe fallback
+            
+        if rule:
+            # Resample numeric columns
+            df = df.resample(rule).mean().dropna().reset_index()
 
     # Calculate Ratio
     df['alpha_ratio'] = (df['alpha_density'] / df['proton_density'].replace(0, np.nan)) * 100
@@ -430,31 +453,53 @@ def ingest_data():
                 f.save(os.path.join(temp_dir, f.filename))
         
         # Run feeder on temp dir
-        # We start a thread to run the script
-        def run_feeder():
+        def run_feeder_pipeline():
+            # 1. Feed Data
             script_path = os.path.join(CODE_DIR, 'feeder.py')
+            print(f"Running Feeder on {temp_dir}...")
             subprocess.run(['python', script_path, '--dir', temp_dir], capture_output=True)
+            
             # Cleanup
             for f in os.listdir(temp_dir):
                 os.remove(os.path.join(temp_dir, f))
-            os.rmdir(temp_dir)
+            try:
+                os.rmdir(temp_dir)
+            except: pass
+
+            # 2. Run Detection
+            print("Running Post-Ingest Detection...")
+            det_path = os.path.join(CODE_DIR, 'detection.py')
+            subprocess.run(['python', det_path], capture_output=True)
+            print("Pipeline Complete.")
             
-        thread = threading.Thread(target=run_feeder)
+        thread = threading.Thread(target=run_feeder_pipeline)
         thread.start()
         
-        return jsonify({'status': 'started', 'message': f'Ingesting {len(files)} files...'})
+        return jsonify({'status': 'started', 'message': f'Ingesting {len(files)} files + Detection...'})
 
     elif mode == 'scrape':
-        days = request.form.get('days', 7)
-        # Assuming scraper script has args, or we just run it. 
-        # Current scraper seems to do "latest". We'll just run it.
-        def run_scraper():
+        start_date = request.form.get('start')
+        end_date = request.form.get('end')
+        
+        def run_scraper_pipeline():
+            # 1. Scrape Data
             script_path = os.path.join(CODE_DIR, 'cactus_scraper.py')
-            subprocess.run(['python', script_path], capture_output=True)
+            args = ['python', script_path]
+            if start_date: args.extend(['--start', start_date])
+            if end_date: args.extend(['--end', end_date])
             
-        thread = threading.Thread(target=run_scraper)
+            print(f"Running Scraper: {args}")
+            subprocess.run(args, capture_output=True)
+            
+            # 2. Run Detection
+            print("Running Post-Scrape Detection...")
+            det_path = os.path.join(CODE_DIR, 'detection.py')
+            subprocess.run(['python', det_path], capture_output=True)
+            print("Pipeline Complete.")
+            
+        thread = threading.Thread(target=run_scraper_pipeline)
         thread.start()
-        return jsonify({'status': 'started', 'message': 'Scraper started...'})
+        return jsonify({'status': 'started', 'message': 'Scraper + Detection started...'})
         
     return jsonify({'error': 'Invalid mode'}), 400
 
@@ -474,15 +519,23 @@ def run_script():
         
     script_path = os.path.join(CODE_DIR, allowed_scripts[script_name])
     
-    def run_process():
-        # In production this would use proper task queues like Celery
+    def run_process_pipeline():
+        # 1. Run Script (Training)
+        print(f"Running Script: {script_name}...")
         subprocess.run(['python', script_path], capture_output=True)
         
+        # 2. Run Detection (If needed after training? Maybe not, but user asked for "everything implemented... at last detection.py needs to be run automatically")
+        # Running detection after training updates the logic/thresholds potentially, so re-running detection on historical data makes sense.
+        print("Running Post-Process Detection...")
+        det_path = os.path.join(CODE_DIR, 'detection.py')
+        subprocess.run(['python', det_path], capture_output=True)
+        print("Pipeline Complete.")
+        
     # Run in background to not block UI
-    thread = threading.Thread(target=run_process)
+    thread = threading.Thread(target=run_process_pipeline)
     thread.start()
     
-    return jsonify({'status': 'started', 'message': f'{script_name} started in background'})
+    return jsonify({'status': 'started', 'message': f'{script_name} + Detection started in background'})
 
 
 if __name__ == '__main__':

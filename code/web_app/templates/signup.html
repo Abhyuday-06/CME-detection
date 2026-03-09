@@ -150,7 +150,10 @@
     <canvas id="bg-canvas"></canvas>
 
     <div class="login-card">
-        <div class="brand-title">Solar<span>Watch</span></div>
+        <div class="brand-title">
+            <img src="{{ url_for('static', filename='icon.png') }}" alt="SolarWatch Icon" width="40" height="40" style="vertical-align: middle; margin-right: 15px;">
+            Solar<span>Watch</span>
+        </div>
         
         {% with messages = get_flashed_messages() %}
             {% if messages %}
