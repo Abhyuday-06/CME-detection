@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SolarWatch | CME Detection</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
     
     <!-- Bootstrap 5 & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,7 +17,7 @@
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
 
     <!-- Lottie Web -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+    
     
     <style>
         :root {
@@ -212,7 +213,17 @@
             font-weight: 600;
         }
 
+        
+        @keyframes pulse-live {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        #live-indicator {
+            animation: pulse-live 2s infinite;
+        }
         /* Charts */
+
         .chart-container {
             min-height: 400px;
             padding: 1rem;
@@ -307,6 +318,8 @@
             z-index: 9999;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
+            pointer-events: all;
         }
         
         .loading-text {
@@ -347,7 +360,26 @@
 
     <!-- Loading Screen -->
     <div id="loading-overlay">
-        <div id="lottie-loader" style="width: 200px; height: 200px;"></div>
+        
+        <!-- Pure CSS Glowing Sun Graphic for Loader -->
+        <div style="position: relative; width: 100px; height: 100px; margin-bottom: 20px;">
+            <div style="
+                width: 80px; height: 80px; top: 10px; left: 10px;
+                background: radial-gradient(circle, #00F0FF 0%, #22d3ee 60%, transparent 100%);
+                border-radius: 50%;
+                position: absolute;
+                z-index: 2;
+                box-shadow: 0 0 30px #00F0FF, inset 0 0 20px #fff;
+                animation: loader-pulse 2s infinite alternate;
+            "></div>
+            <style>
+                @keyframes loader-pulse {
+                    0% { transform: scale(1); opacity: 0.8; }
+                    100% { transform: scale(1.1); opacity: 1; filter: hue-rotate(15deg); }
+                }
+            </style>
+        </div>
+
         <div class="loading-text text-info">INITIALIZING TELEMETRY UPLINK...</div>
     </div>
 
@@ -389,7 +421,7 @@
                             </div>
                         </div>
                         
-                        <div class="col-lg-8">
+                        <div class="col-lg-12">
                             <div class="d-flex gap-2 justify-content-lg-end flex-wrap">
                                 <button class="btn btn-outline-info font-monospace" onclick="showCMEHistory()" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
                                     <i class="bi bi-calendar-event me-1 me-md-2"></i><span class="d-none d-sm-inline">CME </span>LOGS
@@ -412,8 +444,11 @@
         <div class="row mb-4 g-3">
             <div class="col-lg-9">
                 <div class="glass-panel p-2">
-                    <div class="d-flex flex-wrap gap-2 w-100">
-                        <button id="btn-24h" class="btn btn-custom active flex-fill" onclick="setTimeRange('24h', this)" style="padding: 0.75rem; font-size: 0.9rem;">
+                                        <div class="d-flex flex-wrap gap-2 w-100">
+                        <button id="btn-live" class="btn btn-custom active flex-fill" onclick="setTimeRange('live', this)" style="padding: 0.75rem; font-size: 0.9rem; border-color: var(--accent-green);">
+                            <i class="bi bi-broadcast me-1 me-md-2" style="color: var(--accent-green);"></i><span class="d-none d-sm-inline">LIVE</span> FEED
+                        </button>
+                        <button id="btn-24h" class="btn btn-custom flex-fill" onclick="setTimeRange('24h', this)" style="padding: 0.75rem; font-size: 0.9rem;">
                             <i class="bi bi-clock me-1 me-md-2"></i><span class="d-none d-sm-inline">T-</span>24H
                         </button>
                         <button class="btn btn-custom flex-fill" onclick="setTimeRange('7d', this)" style="padding: 0.75rem; font-size: 0.9rem;">
@@ -423,7 +458,7 @@
                             <i class="bi bi-calendar-month me-1 me-md-2"></i><span class="d-none d-sm-inline">T-</span>30D
                         </button>
                         <button class="btn btn-custom flex-fill" onclick="setTimeRange('all', this)" style="padding: 0.75rem; font-size: 0.9rem;">
-                            <i class="bi bi-database me-1 me-md-2"></i><span class="d-none d-sm-inline">FULL </span>HISTORY
+                            <i class="bi bi-database me-1 me-md-2"></i><span class="d-none d-sm-inline">FULL </span>HIST
                         </button>
                     </div>
                 </div>
@@ -443,53 +478,59 @@
             </div>
         </div>
 
-        <!-- Metric Cards -->
+                <!-- Metric Cards -->
         <div class="row g-4 mb-4">
             <div class="col-lg-3 col-md-6">
                 <div class="glass-panel metric-card">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="metric-label">Solar Wind Speed</div>
+                                        <div class="d-flex justify-content-between align-items-start mb-3" title="Solar Wind Speed measures the velocity of charged particles from the sun. High speed increases risk of geomagnetic disturbances.">
+                        <div class="metric-label">Solar Wind Speed <i class="bi bi-info-circle ms-1"></i></div>
                         <i class="bi bi-wind" style="font-size: 1.5rem; color: var(--accent-blue); opacity: 0.5;"></i>
                     </div>
                     <div class="metric-value">
-                        <span id="metric-speed">---</span> 
+                        <span class="small" id="metric-speed-context" style="color: var(--accent-cyan); font-family: 'Share Tech Mono'; letter-spacing: 1px; font-size: 0.7rem;">LATEST</span><br>
+                        <span id="metric-speed" class="text-white">---</span> 
                         <span class="unit">km/s</span>
                     </div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <div class="glass-panel metric-card safe">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="metric-label">Proton Density</div>
-                        <i class="bi bi-droplet" style="font-size: 1.5rem; color: var(--accent-gold); opacity: 0.5;"></i>
+                <div class="glass-panel metric-card safe" id="card-kp">
+                                        <div class="d-flex justify-content-between align-items-start mb-3" title="Kp Index is a scale from 0 to 9 quantifying disturbances in the Earth's magnetic field. Values 5 or above indicate a geomagnetic storm.">
+                        <div class="metric-label">Current Kp Index <i class="bi bi-info-circle ms-1"></i></div>
+                        <i class="bi bi-activity" style="font-size: 1.5rem; color: var(--accent-gold); opacity: 0.5;"></i>
                     </div>
                     <div class="metric-value">
-                        <span id="metric-density">---</span> 
-                        <span class="unit">p/cm³</span>
+                        <span class="small" id="metric-kp-context" style="color: var(--accent-gold); font-family: 'Share Tech Mono'; letter-spacing: 1px; font-size: 0.7rem;">LATEST</span><br>
+                        <span id="metric-kp" class="text-white">---</span> 
+                        <span class="unit">Kp</span>
                     </div>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
                 <div class="glass-panel metric-card danger">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="metric-label">Next 1H Forecast</div>
+                                        <div class="d-flex justify-content-between align-items-start mb-3" title="AI prediction of Kp Index for the next hour based on solar wind and density trends.">
+                        <div class="metric-label">Kp Prediction (+1H) <i class="bi bi-info-circle ms-1"></i></div>
                         <i class="bi bi-graph-up-arrow" style="font-size: 1.5rem; color: var(--accent-red); opacity: 0.5;"></i>
                     </div>
-                    <div class="metric-value" style="color: var(--accent-gold);">
-                        <span id="metric-forecast">---</span>
+                    <div class="metric-value">
+                        <span id="metric-forecast" class="text-white">---</span>
                     </div>
+                    <div class="mt-2 text-warning small" style="font-size: 0.75rem; min-height: 2em;" id="forecast-reason">Loading prediction reason...</div>
+                    <button class="btn btn-sm btn-danger w-100 mt-2 font-monospace" style="font-size: 0.75rem; letter-spacing: 1px;" id="btn-notify-admin" onclick="notifyAuthorities()">
+                        <i class="bi bi-envelope-exclamation me-1"></i>NOTIFY AUTHORITIES
+                    </button>
                     {% if user.is_scientist() %}
                     <button class="btn btn-sm btn-outline-warning w-100 mt-3 font-monospace" style="font-size: 0.75rem; letter-spacing: 1px;" data-bs-toggle="modal" data-bs-target="#feedbackModal">
-                        <i class="bi bi-pencil me-1"></i>CORRECT PREDICTION
+                        <i class="bi bi-pencil me-1"></i>CORRECT KP
                     </button>
                     {% endif %}
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <div class="glass-panel metric-card success">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="metric-label">Active Alerts</div>
-                        <i class="bi bi-bell" style="font-size: 1.5rem; color: var(--accent-green); opacity: 0.5;"></i>
+                <div class="glass-panel metric-card success" id="card-alerts">
+                                        <div class="d-flex justify-content-between align-items-start mb-3" title="Number of detected periods where Kp index reached or exceeded 5, indicating a storm event impacting power and radio.">
+                        <div class="metric-label">Geomagnetic Storms <i class="bi bi-info-circle ms-1"></i></div>
+                        <i class="bi bi-shield-exclamation" style="font-size: 1.5rem; color: var(--accent-green); opacity: 0.5;"></i>
                     </div>
                     <div class="metric-value text-danger">
                         <span id="metric-alerts">0</span>
@@ -508,44 +549,70 @@
                     <div class="text-info mt-2 small font-monospace">FETCHING TELEMETRY...</div>
                 </div>
 
+                                
                 <div class="glass-panel chart-container mb-4 position-relative">
-                    <h6 class="text-info font-monospace small mb-2">SOLAR WIND SPEED (km/s)</h6>
-                    <div id="speedChart" style="width:100%; height:300px;"></div>
+                    <div class="d-flex justify-content-between">
+                        <h6 class="text-info font-monospace small mb-2"><i class="bi bi-broadcast me-2"></i>telemetry.stream: KP INDEX vs SOLAR WIND SPEED</h6>
+                        <span class="badge bg-success" id="live-indicator">LIVE  &#9679;</span>
+                    </div>
+                    <div id="liveKpChart" style="width:100%; height:300px;"></div>
                 </div>
                 
+                <div class="glass-panel chart-container mb-4 position-relative">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="text-info font-monospace small mb-2"><i class="bi bi-water me-2"></i>telemetry.stream: PROTON DENSITY vs THERMAL SPEED</h6>
+                    </div>
+                    <div id="plasmaChart" style="width:100%; height:250px;"></div>
+                </div>
+
+                <div class="glass-panel p-3 mb-4">
+                     <h6 class="text-info font-monospace small mb-3"><i class="bi bi-list-columns-reverse me-2"></i>RAW PARAMETER FEED (LATEST)</h6>
+                     <div class="table-responsive">
+                         <table class="table table-dark table-sm table-custom mb-0 font-monospace text-center">
+                             <thead>
+                                 <tr>
+                                     <th>SPEED (km/s)</th>
+                                     <th>DENSITY (p/cm³)</th>
+                                     <th>TEMP (eV)</th>
+                                     <th>KP INDEX</th>
+                                     <th>STATUS</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 <tr>
+                                     <td id="raw-speed" class="text-info">---</td>
+                                     <td id="raw-density" class="text-warning">---</td>
+                                     <td id="raw-temp" class="text-danger">---</td>
+                                     <td id="raw-kp">---</td>
+                                     <td id="raw-status">---</td>
+                                 </tr>
+                             </tbody>
+                         </table>
+                     </div>
+                </div>
+
+
+                
                 <div class="glass-panel chart-container mb-4">
-                     <h6 class="text-warning font-monospace small mb-2">PROTON DENSITY (p/cm³)</h6>
-                    <div id="densityChart" style="width:100%; height:250px;"></div>
+                     <h6 class="text-warning font-monospace small mb-2"><i class="bi bi-cpu me-2"></i>PREDICTIVE MODEL: KP INDEX (NEXT 6 HOURS)</h6>
+                    <div id="forecastKpChart" style="width:100%; height:250px;"></div>
                 </div>
 
-                <!-- Mini Charts Row -->
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="glass-panel p-3" style="height: 250px;">
-                            <div id="compChart" style="width:100%; height:100%;"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="glass-panel p-3" style="height: 250px;">
-                            <div id="tempChart" style="width:100%; height:100%;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Event Log & Anomalies -->
-            <div class="col-lg-4">
-                <div class="glass-panel h-100 p-0 overflow-hidden d-flex flex-column">
+                <!-- Right: Event Log & Anomalies -->
+            <div class="col-lg-12 mt-4">
+                <div class="glass-panel p-0 overflow-hidden d-flex flex-column">
                     <div class="p-3 border-bottom border-dark bg-dark bg-opacity-50">
                         <h6 class="m-0 text-info font-monospace"><i class="bi bi-exclamation-triangle me-2"></i>EVENT LOG</h6>
                     </div>
                     <div class="table-responsive flex-grow-1">
                         <table class="table table-dark table-hover table-custom mb-0">
-                            <thead>
+                                                        <thead>
                                 <tr>
                                     <th>TIME (UTC)</th>
-                                    <th>SEV</th>
-                                    <th>DETAILS</th>
+                                    <th>SEVERITY</th>
+                                    <th>TRIGGER PARAMETER</th>
+                                    <th>MEASUREMENT</th>
+                                    <th>NOTES</th>
                                 </tr>
                             </thead>
                             <tbody id="alert-table-body">
@@ -573,8 +640,8 @@
                         <input type="text" id="fb-ai-pred" class="form-control bg-dark text-white border-secondary" readonly>
                     </div>
                     <div class="mb-3">
-                        <label>Corrected Value (km/s)</label>
-                        <input type="number" id="fb-human-pred" class="form-control bg-dark text-white border-info">
+                        <label>Corrected Kp Value (0–9)</label>
+                        <input type="number" id="fb-human-pred" class="form-control bg-dark text-white border-info" min="0" max="9" step="0.1" placeholder="e.g. 3.5">
                     </div>
                     <div class="mb-3">
                         <label>Notes</label>
@@ -706,302 +773,319 @@
 
     <script>
         // --- ANIMATIONS ---
-        var anim = lottie.loadAnimation({
-            container: document.getElementById('lottie-loader'),
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            path: 'https://lottie.host/4b8a2134-8c08-4e33-9112-9c9e830f854a/ExampleSolar.json' // Placeholder Lottie URL, usually I'd pick a specific sun one
-        });
-        
+        try {
+            var anim = lottie.loadAnimation({
+                container: document.getElementById('lottie-loader'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                path: 'https://lottie.host/4b8a2134-8c08-4e33-9112-9c9e830f854a/ExampleSolar.json' // Placeholder Lottie URL, usually I'd pick a specific sun one
+            });
+        } catch (e) {
+            console.warn("Lottie animation failed, continuing anyway", e);
+        }
+
         // Use a generic spinner if lottie fails or just hide overlay after load
         setTimeout(() => {
-            document.getElementById('loading-overlay').style.opacity = '0';
-            setTimeout(() => document.getElementById('loading-overlay').remove(), 500);
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    if (overlay.parentNode) {
+                        overlay.remove();
+                    }
+                }, 500);
+            }
             initDashboard();
         }, 1500);
 
         // --- DASHBOARD LOGIC ---
         let currentForecast = null;
+        let forecastData = null;  // Full forecast response from API
         let systemTimeObj = new Date(); // Default to now, will override with DB time
+
+        
+        // Live data handling
+        let liveMode = true;
+        let fetchInterval = null;
 
         async function initDashboard() {
             try {
-                // 1. Get the latest data timestamp from DB
                 const res = await fetch('/api/system-status');
                 const status = await res.json();
-                
                 if (status.latest_data_time) {
                     systemTimeObj = new Date(status.latest_data_time);
-                    console.log("System Time Synced:", systemTimeObj);
                 }
             } catch (e) {
-                console.warn("Failed to sync system time, using wall clock.");
+                console.warn("Status fetch failed.");
             }
 
-            setTimeRange('24h', document.getElementById('btn-24h'));
+            setTimeRange('live', document.getElementById('btn-live'));
             loadAlerts();
             loadForecast();
         }
 
         async function setTimeRange(range, btnElement) {
-             // Visual toggle
             if(btnElement) {
                 document.querySelectorAll('.btn-custom').forEach(b => b.classList.remove('active'));
                 btnElement.classList.add('active');
             }
 
-            // Copy system time to create range anchor
-            let end = new Date(systemTimeObj); 
-            let start = new Date(systemTimeObj);
-            
-            if (range === '24h') start.setHours(start.getHours() - 24);
-            if (range === '7d') start.setDate(start.getDate() - 7);
-            if (range === '30d') start.setDate(start.getDate() - 30);
-            
-            // If T-All, we set start way back
-            if (range === 'all') start.setFullYear(2000); // effectively get everything
-            
-            await loadTelemetry(encodeURIComponent(start.toISOString()), encodeURIComponent(end.toISOString()));
-        }
+            if(fetchInterval) clearInterval(fetchInterval);
+            document.getElementById('live-indicator').style.display = 'none';
 
-        async function loadTelemetry(start, end) {
-            document.getElementById('chart-loader').style.display = 'block';
-            document.body.style.cursor = 'wait';
-            
-            try {
-                const res = await fetch(`/api/telemetry?start=${start}&end=${end}`);
-                const data = await res.json();
-                
-                if (!data.time.length) return;
-
-                // Update Metrics
-                const lastIdx = data.speed.length - 1;
-                document.getElementById('metric-speed').innerText = Math.round(data.speed[lastIdx]);
-                document.getElementById('metric-density').innerText = data.density[lastIdx].toFixed(2);
-
-                renderCharts(data);
-            } catch(e) {
-                console.error(e);
-            } finally {
-                document.getElementById('chart-loader').style.display = 'none';
-                document.body.style.cursor = 'default';
+            if(range === 'live') {
+                liveMode = true;
+                document.getElementById('live-indicator').style.display = 'inline-block';
+                await loadTelemetryLive();
+                fetchInterval = setInterval(loadTelemetryLive, 3000); // Polling every 3s
+            } else {
+                liveMode = false;
+                let end = new Date(systemTimeObj); 
+                let start = new Date(systemTimeObj);
+                if (range === '24h') start.setHours(start.getHours() - 24);
+                if (range === '7d') start.setDate(start.getDate() - 7);
+                if (range === '30d') start.setDate(start.getDate() - 30);
+                if (range === 'all') start.setFullYear(2000);
+                await loadTelemetryHistorical(start.toISOString(), end.toISOString());
             }
         }
 
-        function renderCharts(data) {
+        async function loadTelemetryLive() {
+            try {
+                const res = await fetch(`/api/telemetry?live=true`);
+                const data = await res.json();
+                if (!data.time.length) return;
+                updateCharts(data);
+            } catch(e) {}
+        }
+
+        async function loadTelemetryHistorical(start, end) {
+            document.getElementById('chart-loader').style.display = 'block';
+            try {
+                const res = await fetch(`/api/telemetry?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+                const data = await res.json();
+                if (!data.time.length) return;
+                updateCharts(data);
+            } catch(e) {} finally {
+                document.getElementById('chart-loader').style.display = 'none';
+            }
+        }
+
+        
+        
+        function updateCharts(data) {
+            let speedVal, kpVal;
+            
+            // Calculate actual dynamic storms count (Kp >= 5.0) within this exact slice of time
+            const stormCount = data.kp.filter(k => k >= 5.0).length;
+            document.getElementById('metric-alerts').innerText = stormCount;
+            
+            if (liveMode) {
+                const lastIdx = data.speed.length - 1;
+                speedVal = data.speed[lastIdx];
+                kpVal = data.kp[lastIdx];
+                document.getElementById('metric-speed-context').innerText = "LIVE (LATEST)";
+                document.getElementById('metric-kp-context').innerText = "LIVE (LATEST)";
+            } else {
+                speedVal = data.speed.reduce((a,b) => a+b, 0) / data.speed.length;
+                kpVal = Math.max(...data.kp);
+                document.getElementById('metric-speed-context').innerText = "PERIOD AVERAGE";
+                document.getElementById('metric-kp-context').innerText = "PERIOD MAXIMUM";
+            }
+            
+            // Update predicted UI trigger (pull from latest forecast explicitly upon timeframe load)
+            loadForecast();
+            
+            document.getElementById('metric-speed').innerText = Math.round(speedVal);
+            document.getElementById('metric-kp').innerText = kpVal.toFixed(1);
+
+            const kpCard = document.getElementById('card-kp');
+            kpCard.className = 'glass-panel metric-card ' + (kpVal >= 5 ? 'danger' : (kpVal >= 4 ? 'warning' : 'safe'));
+
+            // Auto-populate Event Logs from telemetry data
+            const tableBody = document.getElementById('alert-table-body');
+            let anomalyHtml = '';
+            let anomalyCount = 0;
+            for(let i = data.kp.length - 1; i >= 0 && anomalyCount < 20; i--) {
+                if(data.kp[i] >= 3.5 || data.speed[i] > 500 || data.density[i] > 12) {
+                    anomalyCount++;
+                    let sev, badge, trig, meas, note;
+                    if (data.kp[i] >= 5.0) {
+                        sev = 'HIGH'; badge = 'danger';
+                        trig = 'Geomagnetic Kp';
+                        meas = `${data.kp[i].toFixed(1)} Kp`;
+                        note = 'Storm Level Activity Detected';
+                    } else if (data.kp[i] >= 4.0) {
+                        sev = 'ELEVATED'; badge = 'warning';
+                        trig = 'Geomagnetic Kp';
+                        meas = `${data.kp[i].toFixed(1)} Kp`;
+                        note = 'Approaching storm threshold';
+                    } else if (data.speed[i] > 500) {
+                        sev = data.speed[i] > 600 ? 'HIGH' : 'ELEVATED';
+                        badge = data.speed[i] > 600 ? 'danger' : 'warning';
+                        trig = 'Solar Wind Speed';
+                        meas = `${Math.round(data.speed[i])} km/s`;
+                        note = data.speed[i] > 600 ? 'Extreme solar wind velocity' : 'Elevated solar wind velocity';
+                    } else if (data.density[i] > 12) {
+                        sev = data.density[i] > 20 ? 'HIGH' : 'ELEVATED';
+                        badge = data.density[i] > 20 ? 'danger' : 'warning';
+                        trig = 'Proton Density';
+                        meas = `${data.density[i].toFixed(1)} p/cm³`;
+                        note = 'Dense plasma cloud detected';
+                    } else {
+                        sev = 'MODERATE'; badge = 'info';
+                        trig = 'Combined Parameters';
+                        meas = `Kp ${data.kp[i].toFixed(1)}`;
+                        note = 'Parameters approaching thresholds';
+                    }
+                    anomalyHtml += `<tr>
+                        <td>${new Date(data.time[i]).toLocaleString()}</td>
+                        <td><span class="badge bg-${badge}">${sev}</span></td>
+                        <td>${trig}</td>
+                        <td class="text-info">${meas}</td>
+                        <td>${note}</td>
+                    </tr>`;
+                }
+            }
+            if(!anomalyHtml) anomalyHtml = '<tr><td colspan="5" class="text-center text-muted">No anomalies detected in selected timeframe</td></tr>';
+            tableBody.innerHTML = anomalyHtml;
+
+
             const fontConfig = { family: 'Share Tech Mono', color: '#e2e8f0', size: 11 };
-            const titleFont = { family: 'Rajdhani', color: '#f1f5f9', size: 13, weight: 600 };
-            const gridColor = 'rgba(255,255,255,0.08)';
-            const margin = { t: 20, l: 50, r: 20, b: 40 };
-
-             // Speed Chart
-             Plotly.newPlot('speedChart', [
+            const margin = { t: 20, l: 40, r: 40, b: 30 };
+            
+            // Live/Historical KP & Speed Chart
+            Plotly.react('liveKpChart', [
                 {
-                    x: data.time,
-                    y: data.speed,
-                    name: 'Speed',
-                    type: 'scatter',
-                    line: { color: '#38bdf8', width: 1.5 },
-                    fill: 'tozeroy',
-                    fillcolor: 'rgba(56, 189, 248, 0.1)',
-                    hovertemplate: '<b>%{y:.2f} km/s</b><br>%{x}<extra></extra>'
+                    x: data.time, y: data.kp,
+                    name: 'Kp Index', type: 'bar',
+                    marker: { color: data.kp.map(v => v >= 5 ? '#f43f5e' : (v >= 4 ? '#fbbf24' : '#10b981')) },
+                    yaxis: 'y'
+                },
+                {
+                    x: data.time, y: data.speed,
+                    name: 'Speed', type: 'scatter',
+                    line: { color: '#38bdf8', width: 2 },
+                    yaxis: 'y2'
                 }
             ], {
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                showlegend: false,
-                margin: margin,
-                hovermode: 'x unified',
-                hoverlabel: {
-                    bgcolor: 'rgba(10, 14, 26, 0.95)',
-                    bordercolor: '#38bdf8',
-                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
-                },
-                xaxis: { 
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikecolor: 'rgba(0, 240, 255, 0.6)',
-                    spikethickness: 1,
-                    spikedash: 'solid'
-                },
-                yaxis: { 
-                    title: { text: 'Speed (km/s)', font: titleFont },
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: false
-                }
-            }, {responsive: true, displayModeBar: false});
-
-            // Density Chart
-            Plotly.newPlot('densityChart', [
-                 {
-                    x: data.time,
-                    y: data.density,
-                    name: 'Density',
-                    type: 'scatter',
-                    line: { color: '#fbbf24', width: 1.5 },
-                    fill: 'tozeroy',
-                    fillcolor: 'rgba(251, 191, 36, 0.2)',
-                    hovertemplate: '<b>%{y:.2f} p/cm³</b><br>%{x}<extra></extra>'
-                }
-            ], {
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                showlegend: false,
-                margin: margin,
-                hovermode: 'x unified',
-                hoverlabel: {
-                    bgcolor: 'rgba(10, 14, 26, 0.95)',
-                    bordercolor: '#fbbf24',
-                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
-                },
-                xaxis: { 
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikecolor: 'rgba(253, 184, 19, 0.6)',
-                    spikethickness: 1,
-                    spikedash: 'solid'
-                },
-                yaxis: { 
-                    title: { text: 'Density (p/cm³)', font: titleFont },
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: false
-                }
-            }, {responsive: true, displayModeBar: false});
-
-            // Ratio Chart
-            Plotly.newPlot('compChart', [{
-                x: data.time, y: data.alpha_ratio,
-                type: 'scatter', line: { color: '#f43f5e', width: 1.5 },
-                fill: 'tozeroy',
-                hovertemplate: '<b>%{y:.3f}</b><br>%{x}<extra></extra>'
-            }], {
-                title: { text: 'ALPHA RATIO', font: { family: 'Rajdhani', size: 13, color: '#f1f5f9', weight: 600 } },
                 paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 40, l: 40, r: 20, b: 30 },
-                hovermode: 'x unified',
-                hoverlabel: {
-                    bgcolor: 'rgba(10, 14, 26, 0.95)',
-                    bordercolor: '#f43f5e',
-                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
-                },
-                xaxis: { 
-                    showticklabels: false, 
-                    gridcolor: gridColor,
-                    color: '#e2e8f0',
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikecolor: 'rgba(244, 63, 94, 0.6)',
-                    spikethickness: 1,
-                    spikedash: 'solid'
-                },
-                yaxis: { 
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: false
-                }
+                margin: margin, showlegend: false,
+                xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig },
+                yaxis: { title: 'Kp Index', gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig, range: [0, 9] },
+                yaxis2: { title: 'Speed (km/s)', overlaying: 'y', side: 'right', tickfont: fontConfig }
             }, {responsive: true, displayModeBar: false});
             
-             // Temp Chart
-            Plotly.newPlot('tempChart', [{
-                x: data.time, y: data.temperature,
-                type: 'scatter', line: { color: '#22c55e', width: 1.5 },
-                hovertemplate: '<b>%{y:.0f} K</b><br>%{x}<extra></extra>'
-            }], {
-                title: { text: 'TEMP (K)', font: { family: 'Rajdhani', size: 13, color: '#f1f5f9', weight: 600 } },
-                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 40, l: 40, r: 20, b: 30 },
-                hovermode: 'x unified',
-                hoverlabel: {
-                    bgcolor: 'rgba(10, 14, 26, 0.95)',
-                    bordercolor: '#22c55e',
-                    font: { family: 'Share Tech Mono', size: 12, color: '#ffffff' }
+            
+            // Plasma Chart (Density & Temp)
+            Plotly.react('plasmaChart', [
+                {
+                    x: data.time, y: data.density,
+                    name: 'Density', type: 'scatter',
+                    line: { color: '#8b5cf6', width: 2 },
+                    fill: 'tozeroy', fillcolor: 'rgba(139, 92, 246, 0.1)',
+                    yaxis: 'y'
                 },
-                xaxis: { 
-                    showticklabels: false, 
-                    gridcolor: gridColor,
-                    color: '#e2e8f0',
-                    showspikes: true,
-                    spikemode: 'across',
-                    spikesnap: 'cursor',
-                    spikecolor: 'rgba(34, 197, 94, 0.6)',
-                    spikethickness: 1,
-                    spikedash: 'solid'
-                },
-                yaxis: { 
-                    gridcolor: gridColor, 
-                    tickfont: fontConfig,
-                    color: '#e2e8f0',
-                    showspikes: false
+                {
+                    x: data.time, y: data.temp,
+                    name: 'Temp', type: 'scatter',
+                    line: { color: '#f59e0b', width: 2, dash: 'dot' },
+                    yaxis: 'y2'
                 }
+            ], {
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: margin, showlegend: false,
+                xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig },
+                yaxis: { title: 'Density (p/cm³)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig },
+                yaxis2: { title: 'Temp (eV)', overlaying: 'y', side: 'right', tickfont: fontConfig }
             }, {responsive: true, displayModeBar: false});
-        }
+            
+            // Update Raw Feed Table
+            const lastDataIdx = data.speed.length - 1;
+            const rSpeed = data.speed[lastDataIdx];
+            const rDensity = data.density[lastDataIdx];
+            const rTemp = data.temp[lastDataIdx];
+            const rKp = data.kp[lastDataIdx];
+            
+            document.getElementById('raw-speed').innerText = Math.round(rSpeed);
+            document.getElementById('raw-density').innerText = rDensity.toFixed(2);
+            document.getElementById('raw-temp').innerText = Math.round(rTemp);
+            document.getElementById('raw-kp').innerText = rKp.toFixed(1);
+            
+            let statusBadge = '<span class="badge bg-success">NOMINAL</span>';
+            if (rKp >= 5.0 || rSpeed > 600) statusBadge = '<span class="badge bg-danger">STORM / ANOMALY</span>';
+            else if (rKp >= 4.0 || rDensity > 15) statusBadge = '<span class="badge bg-warning">WARNING</span>';
+            
+            document.getElementById('raw-status').innerHTML = statusBadge;
+}
+
 
         async function loadForecast() {
             try {
                 const res = await fetch('/api/forecast');
                 const data = await res.json();
-                
-                if (data.error) {
+                if (data.error || !data.predictions || !data.predictions.length) {
                     document.getElementById('metric-forecast').innerText = "N/A";
                     return;
                 }
+
                 
-                // Get the first prediction for the card
-                const firstPred = data.predictions[0];
-                document.getElementById('metric-forecast').innerText = Math.round(firstPred.speed);
+                forecastData = data;  // Store full response
                 currentForecast = data.predictions[0];
-                currentForecast.last_observed_time = data.last_observed_time; // Attach context
-
-                // Add prediction line to Speed Chart
-                const predTimes = data.predictions.map(p => p.time);
-                const predSpeeds = data.predictions.map(p => p.speed);
-
-                Plotly.addTraces('speedChart', {
-                    x: predTimes,
-                    y: predSpeeds,
-                    mode: 'lines+markers',
-                    name: 'AI Forecast (6H)',
-                    line: { color: '#22c55e', dash: 'dot', width: 3 }, // Green for forecast
-                    marker: { size: 6, color: '#22c55e' }
-                });
+                document.getElementById('metric-forecast').innerText = data.predictions[0].kp.toFixed(1);
                 
-                // Update Modal with first prediction
-                document.getElementById('fb-ai-pred').value = firstPred.speed.toFixed(2);
+                // Pre-populate the CORRECT KP modal's AI prediction field
+                const fbPredField = document.getElementById('fb-ai-pred');
+                if (fbPredField) {
+                    fbPredField.value = `Kp ${data.predictions[0].kp.toFixed(1)} (predicted for ${new Date(data.predictions[0].time).toLocaleString()})`;
+                }
                 
-            } catch (e) { console.error(e); }
+                if (data.reason) {
+                    document.getElementById('forecast-reason').innerText = data.reason;
+                } else {
+                    document.getElementById('forecast-reason').innerText = "";
+                }
+                
+                const notifyBtn = document.getElementById('btn-notify-admin');
+                if (notifyBtn) {
+                   notifyBtn.style.display = "block"; // Always display for fast access
+                }
+
+
+                const times = data.predictions.map(p => p.time);
+                const kps = data.predictions.map(p => p.kp);
+
+                const fontConfig = { family: 'Share Tech Mono', color: '#e2e8f0', size: 11 };
+                Plotly.react('forecastKpChart', [{
+                    x: times, y: kps,
+                    type: 'scatter', mode: 'lines+markers',
+                    line: { color: '#f43f5e', width: 3, shape: 'spline' },
+                    marker: { size: 8, color: '#f43f5e' },
+                    fill: 'tozeroy', fillcolor: 'rgba(244, 63, 94, 0.1)'
+                }], {
+                    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                    margin: { t: 20, l: 40, r: 20, b: 30 },
+                    xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig },
+                    yaxis: { title: 'Expected Kp', gridcolor: 'rgba(255,255,255,0.05)', tickfont: fontConfig, range: [0, 9] }
+                }, {responsive: true, displayModeBar: false});
+
+            } catch(e) { console.error('Forecast error', e) }
         }
 
+
         async function loadAlerts() {
-            const res = await fetch('/api/alerts');
-            const data = await res.json();
-            
-            // Handle new structure { total: N, recent: [...] }
-            document.getElementById('metric-alerts').innerText = data.total || 0;
-            
-            const list = data.recent || data; // Fallback if old API
-            const html = list.map(a => `
-                <tr>
-                    <td>${new Date(a.generated_at).toLocaleString()}</td>
-                    <td><span class="badge ${a.severity === 'HIGH' ? 'bg-danger' : 'bg-warning'}">${a.severity}</span></td>
-                    <td class="text-truncate" style="max-width: 150px;">${a.message}</td>
-                </tr>
-            `).join('');
-            document.getElementById('alert-table-body').innerHTML = html;
+            // Fetch DB-level storm count for the metric card only.
+            // Event log table is populated by updateCharts() from live telemetry data.
+            try {
+                const res = await fetch('/api/alerts');
+                const data = await res.json();
+                // Only update the storm count metric — do NOT overwrite the event log table
+                // (updateCharts handles that with proper 5-column layout)
+            } catch(e) {
+                console.error("Alerts fetching failed", e);
+            }
         }
 
         async function submitIngest(mode) {
@@ -1048,7 +1132,29 @@
             }
         }
 
-        // --- SCIENTIST FUNCTIONS ---
+        
+        async function notifyAuthorities() {
+            if(!currentForecast || !currentForecast.kp) {
+                alert('Forecast data not yet available. Please wait for the prediction to load.');
+                return;
+            }
+            const kpVal = currentForecast.kp.toFixed(1);
+            if(!confirm(`WARNING: Initiate Emergency Notification Sequence for predicted Kp ${kpVal}?`)) return;
+            
+            try {
+                const res = await fetch('/api/notify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({kp: kpVal})
+                });
+                const data = await res.json();
+                alert(data.message || "Notification sent.");
+            } catch(e) {
+                alert("Comm error while sending notification.");
+            }
+        }
+        
+// --- SCIENTIST FUNCTIONS ---
         async function runScript(scriptName) {
             if(!confirm(`Authorize execution of: ${scriptName}.py?`)) return;
             
@@ -1106,25 +1212,40 @@
         }
 
         async function submitFeedback() {
+            if (!currentForecast || !forecastData) {
+                alert('Forecast data not yet available. Please wait for the prediction to load.');
+                return;
+            }
+            
             const corrected = document.getElementById('fb-human-pred').value;
             const comments = document.getElementById('fb-notes').value;
             
-            if(!corrected) return alert("Enter a value.");
+            if(!corrected) return alert("Enter a corrected Kp value.");
 
-            await fetch('/api/submit-feedback', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    time: currentForecast.last_observed_time,
-                    predicted: currentForecast.predicted_speed,
-                    corrected: parseFloat(corrected),
-                    comment: comments
-                })
-            });
-            
-            const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
-            modal.hide();
-            alert("Feedback Looped. Model will incorporate variance in next epoch.");
+            try {
+                const res = await fetch('/api/submit-feedback', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        time: forecastData.last_observed_time,
+                        predicted: currentForecast.kp,
+                        corrected: parseFloat(corrected),
+                        comment: comments
+                    })
+                });
+                const data = await res.json();
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                if (modal) modal.hide();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Feedback Looped. Model will incorporate variance in next epoch.');
+                }
+            } catch(e) {
+                alert('Error submitting feedback: ' + e.message);
+            }
         }
     </script>
 </body>

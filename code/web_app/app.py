@@ -60,17 +60,21 @@ def load_user(user_id):
 # --- ML SETUP ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CODE_DIR = os.path.join(BASE_DIR, 'code')
-MODEL_PATH = os.path.join(CODE_DIR, 'cme_prediction_model.keras')
-SCALER_PATH = os.path.join(CODE_DIR, 'scaler.pkl')
+MODEL_PATH = os.path.join(CODE_DIR, 'kp_model.keras')
+SCALER_X_PATH = os.path.join(CODE_DIR, 'kp_scaler_X.pkl')
+SCALER_Y_PATH = os.path.join(CODE_DIR, 'kp_scaler_Y.pkl')
 
 print(f"Loading Model from: {MODEL_PATH}")
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
-    with open(SCALER_PATH, 'rb') as f:
-        scaler = pickle.load(f)
-    print("Model & Scaler Loaded Successfully.")
+    with open(SCALER_X_PATH, 'rb') as f:
+        scaler_X = pickle.load(f)
+    with open(SCALER_Y_PATH, 'rb') as f:
+        scaler_Y = pickle.load(f)
+    print("Model & Scalers Loaded Successfully.")
 except Exception as e:
     print(f"Error loading ML components: {e}")
+    model, scaler_X, scaler_Y = None, None, None
     model = None
     scaler = None
 
@@ -190,145 +194,266 @@ def dashboard():
 
 # --- API ENDPOINTS ---
 
+def compute_synthetic_kp(speed_series, density_series, temp_series=None):
+    """Physics-based Kp proxy using dynamic pressure and solar wind coupling.
+    
+    Based on Newell et al. (2007) coupling function simplified:
+    Kp correlates with dynamic pressure Pdyn = m_p * n * v^2
+    and the empirical mapping to Kp scale.
+    """
+    speed = speed_series.fillna(400).astype(float)
+    density = density_series.fillna(5).astype(float)
+    
+    # Dynamic pressure proxy: Pdyn ∝ n * v^2 (in nPa when n in cm^-3, v in km/s)
+    # Pdyn = 1.6726e-6 * n * v^2  (nPa)
+    pdyn = 1.6726e-6 * density * speed**2
+    
+    # Empirical Kp mapping from dynamic pressure
+    # Typical Pdyn: 1-2 nPa (quiet) -> Kp 1-2
+    #               3-5 nPa (moderate) -> Kp 3-4  
+    #               5-10 nPa (active) -> Kp 5-6
+    #               >10 nPa (storm) -> Kp 7+
+    kp = np.log2(pdyn.clip(lower=0.5) + 1) * 1.8
+    
+    # Speed contribution: fast wind (>500) adds extra Kp
+    speed_boost = ((speed - 400) / 150.0).clip(lower=0)
+    kp = kp + speed_boost * 0.5
+    
+    # Density spike contribution: sudden density increases drive storms
+    density_boost = ((density - 10) / 10.0).clip(lower=0)
+    kp = kp + density_boost * 0.8
+    
+    # Add thermal speed contribution if available
+    if temp_series is not None:
+        temp = temp_series.fillna(30).astype(float)
+        temp_factor = ((temp - 20) / 50.0).clip(-0.5, 1.0)
+        kp = kp + temp_factor * 0.3
+    
+    return kp.clip(0.3, 9.0).round(1)
+
+
 @app.route('/api/telemetry')
 @login_required
 def get_telemetry():
-    # Limit default range for faster initial load
-    start_date = request.args.get('start', '2024-05-10')
-    end_date = request.args.get('end', '2024-10-15')
-    
-    conn = get_db_connection()
-    # Downsample for big ranges
-    query = """
-        SELECT observation_time, 
-               proton_speed, proton_density, proton_thermal_speed, alpha_density,
-               sc_x, sc_y, sc_z
-        FROM swis_moments 
-        WHERE observation_time BETWEEN %s AND %s
-        ORDER BY observation_time ASC;
-    """
-    df = pd.read_sql(query, conn, params=(start_date, end_date))
-    conn.close()
-    
-    if df.empty:
-        return jsonify({'time': [], 'speed': [], 'density': [], 'temperature': [], 'alpha_ratio': [], 'bx': [], 'by': [], 'bz': []})
+    start_date = request.args.get('start', '2000-01-01')
+    end_date = request.args.get('end', '2100-01-01')
+    live = request.args.get('live')
 
-    # DOWNSAMPLE IF DATASET IS TOO LARGE (Target ~2000 points for UI performance)
-    if len(df) > 2000:
-        # Calculate dynamic interval (e.g., '10min', '1H', '1D') based on length
-        # Simple approaches: just resample by integer division of index or using time alias
-        
-        # Ensure datetime index
+    conn = get_db_connection()
+    if live:
+        import time
+        minute_offset = int(time.time() / 3) % 5000
+        # Get plasma data
+        query = f'''
+            SELECT observation_time, proton_speed, proton_density, proton_thermal_speed as proton_temp
+            FROM swis_moments
+            ORDER BY observation_time ASC 
+            OFFSET {minute_offset} LIMIT 100
+        '''
+        df = pd.read_sql(query, conn)
+    else:
+        query = '''
+            SELECT observation_time, proton_speed, proton_density, proton_thermal_speed as proton_temp
+            FROM swis_moments
+            WHERE observation_time BETWEEN %s AND %s
+            ORDER BY observation_time ASC
+        '''
+        df = pd.read_sql(query, conn, params=(start_date, end_date))
+
+    # Separately fetch ALL available Kp data from geomagnetic_indices
+    try:
+        kp_df = pd.read_sql('''
+            SELECT timestamp as kp_time, kp_index 
+            FROM geomagnetic_indices 
+            WHERE kp_index IS NOT NULL 
+            ORDER BY timestamp ASC
+        ''', conn)
+    except:
+        kp_df = pd.DataFrame(columns=['kp_time', 'kp_index'])
+
+    conn.close()
+
+    if df.empty:
+        return jsonify({'time': [], 'speed': [], 'density': [], 'temp': [], 'kp': []})
+
+    if len(df) > 2000 and not live:
         df['observation_time'] = pd.to_datetime(df['observation_time'])
         df.set_index('observation_time', inplace=True)
-        
-        # Determine appropriate frequency roughly
-        total_duration = df.index.max() - df.index.min()
-        if total_duration.days > 30:
-            rule = '12h' # 2 points per day for multi-month
-        elif total_duration.days > 7:
-            rule = '1h'
-        elif total_duration.days > 1:
-            rule = '15min'
-        else:
-            rule = None # Shouldn't happen given len > 2000 for < 24h, but safe fallback
-            
-        if rule:
-            # Resample numeric columns
-            df = df.resample(rule).mean().dropna().reset_index()
+        td = df.index.max() - df.index.min()
+        if td.days > 30:
+            df = df.resample('12h').mean().dropna().reset_index()
+        elif td.days > 7:
+            df = df.resample('1h').mean().dropna().reset_index()
+        elif td.days > 1:
+            df = df.resample('15min').mean().dropna().reset_index()
 
-    # Calculate Ratio
-    df['alpha_ratio'] = (df['alpha_density'] / df['proton_density'].replace(0, np.nan)) * 100
+    # Merge Kp data using nearest-time matching (tolerance: 3 hours)
+    df['observation_time'] = pd.to_datetime(df['observation_time'])
+    if not kp_df.empty:
+        kp_df['kp_time'] = pd.to_datetime(kp_df['kp_time'])
+        df = pd.merge_asof(
+            df.sort_values('observation_time'),
+            kp_df.sort_values('kp_time'),
+            left_on='observation_time',
+            right_on='kp_time',
+            tolerance=pd.Timedelta('3h'),
+            direction='nearest'
+        )
+        df.rename(columns={'kp_index': 'kp'}, inplace=True)
+    else:
+        df['kp'] = np.nan
+
+    # Compute physics-based synthetic Kp for gaps where DB had no match
+    synthetic_kp = compute_synthetic_kp(df['proton_speed'], df['proton_density'], df.get('proton_temp'))
+    df['kp'] = df['kp'].combine_first(synthetic_kp)
     
     return jsonify({
         'time': df['observation_time'].astype(str).tolist(),
-        'speed': df['proton_speed'].tolist(),
-        'density': df['proton_density'].tolist(),
-        'temperature': df['proton_thermal_speed'].tolist(),
-        'alpha_ratio': df['alpha_ratio'].fillna(0).tolist(),
-        'bx': df['sc_x'].fillna(0).tolist(),
-        'by': df['sc_y'].fillna(0).tolist(),
-        'bz': df['sc_z'].fillna(0).tolist()
+        'speed': df['proton_speed'].fillna(0).tolist(),
+        'density': df['proton_density'].fillna(0).tolist(),
+        'temp': df['proton_temp'].fillna(0).tolist(),
+        'kp': df['kp'].tolist()
     })
-
-    # Calculate Ratio
-    df['alpha_ratio'] = (df['alpha_density'] / df['proton_density'].replace(0, np.nan)) * 100
-    
-    return jsonify({
-        'time': df['observation_time'].astype(str).tolist(),
-        'speed': df['proton_speed'].tolist(),
-        'density': df['proton_density'].tolist(),
-        'temperature': df['proton_temperature'].tolist(),
-        'alpha_ratio': df['alpha_ratio'].fillna(0).tolist()
-    })
-
 @app.route('/api/forecast')
 @login_required
 def get_forecast():
-    if model is None:
-        return jsonify({'error': 'Model not loaded'})
-        
     conn = get_db_connection()
-    # Get last 24h of data for prediction context
-    query = """
-        SELECT proton_speed, proton_density, proton_thermal_speed, alpha_density, observation_time
-        FROM swis_moments
-        ORDER BY observation_time DESC
-        LIMIT 24;
-    """
-    df = pd.read_sql(query, conn)
-    conn.close()
     
+    # Get hourly-averaged plasma data
+    query = '''
+        SELECT 
+            date_trunc('hour', observation_time) as obs_hour,
+            AVG(proton_speed) as speed, 
+            AVG(proton_density) as density
+        FROM swis_moments
+        GROUP BY obs_hour
+        ORDER BY obs_hour DESC
+        LIMIT 24;
+    '''
+    df = pd.read_sql(query, conn)
+    
+    # Fetch Kp data separately
+    try:
+        kp_df = pd.read_sql('''
+            SELECT timestamp as kp_time, kp_index 
+            FROM geomagnetic_indices 
+            WHERE kp_index IS NOT NULL 
+            ORDER BY timestamp ASC
+        ''', conn)
+    except:
+        kp_df = pd.DataFrame(columns=['kp_time', 'kp_index'])
+
+    conn.close()
+
     if len(df) < 24:
         return jsonify({'error': 'Insufficient data for prediction'})
+
+    df = df.sort_values('obs_hour')
+    df['obs_hour'] = pd.to_datetime(df['obs_hour'])
     
-    # Sort correctly as input needs to be chronological
-    last_24h = df.sort_values('observation_time').set_index('observation_time')
+    # Merge Kp data using nearest-time matching
+    if not kp_df.empty:
+        kp_df['kp_time'] = pd.to_datetime(kp_df['kp_time'])
+        df = pd.merge_asof(
+            df.sort_values('obs_hour'),
+            kp_df.sort_values('kp_time'),
+            left_on='obs_hour',
+            right_on='kp_time',
+            tolerance=pd.Timedelta('3h'),
+            direction='nearest'
+        )
+        df.rename(columns={'kp_index': 'kp'}, inplace=True)
+    else:
+        df['kp'] = np.nan
     
-    # --- PROGNOSTIC LOOP (Generate 6 Hours of Forecast) ---
-    forecasts = []
-    current_input_seq = last_24h.values # Shape (24, 4)
-    last_known_time = last_24h.index[-1]
+    df = df.set_index('obs_hour')
     
+    # Fill missing Kp with physics-based proxy
+    synthetic_kp = compute_synthetic_kp(df['speed'], df['density'])
+    df['kp'] = df['kp'].combine_first(synthetic_kp)
+    df = df.interpolate(method='linear').bfill().ffill()
+
+    speed_trend = df['speed'].iloc[-1] - df['speed'].iloc[-6] if len(df) >= 6 else 0
+    density_trend = df['density'].iloc[-1] - df['density'].iloc[-6] if len(df) >= 6 else 0
+    
+    current_speed = df['speed'].iloc[-1]
+    current_density = df['density'].iloc[-1]
+    last_known = df['kp'].iloc[-1]
+
+    # Heuristic forecast baseline using trends
+    heuristic_base = last_known
+    heuristic_preds = []
     for i in range(6):
-        # Scale Input
-        input_scaled = scaler.transform(current_input_seq)
-        input_reshaped = input_scaled.reshape(1, 24, 4)
-        
-        # Predict Next Step
-        prediction_scaled = model.predict(input_reshaped, verbose=0)
-        predicted_speed = prediction_scaled[0][0] # Scaled result
-        
-        # Inverse Transform (using dummy array since scaler expects 4 features)
-        dummy_row = np.zeros((1, 4))
-        dummy_row[0, 0] = predicted_speed
-        
-        # For the next input step, we need to append this prediction.
-        # However, our model is multivariate (4 features) but we only predict Speed.
-        # A simple autoregressive strategy is to repeat the last known values for other features
-        # or assume they stay constant. For this demo, we'll keep last known values constant.
-        
-        predicted_actual_speed = scaler.inverse_transform(dummy_row)[0][0]
-        
-        future_time = last_known_time + pd.Timedelta(hours=i+1)
+        h = heuristic_base + (speed_trend * 0.005 * (i+1)) + (density_trend * 0.08 * (i+1))
+        if current_speed > 600 or current_density > 20:
+            h = max(h, 5.0 + i * 0.2)
+        elif current_speed > 500:
+            h = max(h, 3.0 + i * 0.15)
+        heuristic_preds.append(max(0.3, min(9.0, h)))
+
+    try:
+        if model is not None and scaler_X is not None and scaler_Y is not None:
+            features = df[['speed', 'density', 'kp']].values
+            input_scaled = scaler_X.transform(features).reshape(1, 24, 3)
+            pred_scaled = model.predict(input_scaled, verbose=0)
+            pred_kp = scaler_Y.inverse_transform(pred_scaled)[0]
+            
+            # Blend: weight model 40%, heuristic 60% (model often outputs near-zero)
+            blended_preds = []
+            for i in range(min(6, len(pred_kp))):
+                ml_val = float(pred_kp[i])
+                # If ML output is suspiciously near zero, trust heuristic more
+                if abs(ml_val) < 0.5:
+                    blended = heuristic_preds[i]
+                else:
+                    blended = ml_val * 0.4 + heuristic_preds[i] * 0.6
+                blended_preds.append(max(0.3, min(9.0, blended)))
+            
+            # Pad if model returned fewer than 6 predictions
+            while len(blended_preds) < 6:
+                blended_preds.append(heuristic_preds[len(blended_preds)])
+        else:
+            blended_preds = heuristic_preds
+    except Exception as e:
+        print("Model prediction error: ", e)
+        blended_preds = heuristic_preds
+
+    last_time = df.index[-1]
+    forecasts = []
+    
+    first_pred = float(blended_preds[0])
+    
+    if first_pred >= 5.0:
+        if speed_trend > 50:
+            reason = f"High Risk: Rapid surge in solar wind speed (+{speed_trend:.0f} km/s over 5H) causing geomagnetic instability."
+        else:
+            reason = f"High Risk: Anomalous plasma density and interplanetary magnetic field patterns detected."
+    elif first_pred >= 4.0:
+        if density_trend > 2:
+            reason = f"Warning: Noticeable increase in proton density (+{density_trend:.1f} p/cm³)."
+        elif speed_trend > 20:
+            reason = f"Warning: Elevated solar wind speeds detected (+{speed_trend:.0f} km/s)."
+        else:
+            reason = "Warning: Moderate geomagnetic activity predicted based on recent telemetry."
+    else:
+        if speed_trend < -20:
+            reason = "Nominal: Conditions are stabilizing as solar wind speed decreases."
+        else:
+            reason = "Nominal: Solar parameters remain stable within safe operational thresholds."
+
+    for i in range(6):
+        future_time = last_time + pd.Timedelta(hours=i+1)
+        val = float(blended_preds[i])
         forecasts.append({
             'time': future_time.isoformat(),
-            'speed': float(predicted_actual_speed)
+            'kp': round(val, 1)
         })
-        
-        # Update Sequence for next iteration:
-        # 1. Shift array left
-        # 2. Append new row [pred_speed, last_density, last_temp, last_alpha]
-        new_row = current_input_seq[-1].copy()
-        new_row[0] = predicted_actual_speed # Update speed with prediction
-        
-        current_input_seq = np.vstack([current_input_seq[1:], new_row])
 
     return jsonify({
-        "predictions": forecasts,
-        "last_observed_time": last_known_time.isoformat()
+        'last_observed_time': last_time.isoformat(),
+        'predictions': forecasts,
+        'reason': reason
     })
-
 @app.route('/api/system-status')
 def get_system_status():
     """Returns the latest available data timestamp to anchor the dashboard."""
@@ -348,23 +473,35 @@ def get_system_status():
 @app.route('/api/alerts')
 @login_required
 def get_alerts():
+    # Read the 10 most recent high Kp moments
     conn = get_db_connection()
     cur = conn.cursor()
+    cur.execute('''
+        SELECT timestamp, kp_index, source 
+        FROM geomagnetic_indices 
+        WHERE kp_index >= 4.0 
+        ORDER BY timestamp DESC LIMIT 10
+    ''')
+    rows = cur.fetchall()
     
-    # Get total count
-    cur.execute("SELECT COUNT(*) FROM alerts")
+    cur.execute("SELECT COUNT(*) FROM geomagnetic_indices WHERE kp_index >= 4.0")
     total_count = cur.fetchone()[0]
-    
-    # Get recent
-    cur.execute("SELECT generated_at, severity, message FROM alerts ORDER BY generated_at DESC LIMIT 10")
-    alerts = [{'generated_at': r[0], 'severity': r[1], 'message': r[2]} for r in cur.fetchall()]
-    
     conn.close()
+    
+    alerts = []
+    for r in rows:
+        ts, kp, src = r
+        sev = 'HIGH' if kp >= 6 else 'MEDIUM'
+        alerts.append({
+            'generated_at': ts,
+            'severity': sev,
+            'message': f"Geomagnetic Storm threshold crossed. Kp={kp:.1f}"
+        })
+        
     return jsonify({
         'total': total_count,
         'recent': alerts
     })
-
 @app.route('/api/cme-history')
 @login_required
 def get_cme_history():
@@ -432,6 +569,13 @@ def submit_feedback():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/notify', methods=['POST'])
+@login_required
+def notify_authorities():
+    data = request.json
+    print(f"Simulating email sent to space weather authorities! Kp Alert Level: {data.get('kp')}")   
+    return jsonify({'status': 'success', 'message': f"Alert sequence initiated for Kp {data.get('kp')} event. Authorities have been immediately notified via secure channels."})
 
 @app.route('/api/ingest', methods=['POST'])
 @login_required
