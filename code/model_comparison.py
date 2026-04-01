@@ -352,17 +352,21 @@ def evaluate_model(y_true, y_pred_scaled, scaler_y, model_name):
     rmse = np.sqrt(mean_squared_error(y_true_actual, y_pred_actual))
     mae = mean_absolute_error(y_true_actual, y_pred_actual)
     r2 = r2_score(y_true_actual, y_pred_actual)
+    # Accuracy: % of predictions within ±1 Kp unit (standard space weather tolerance)
+    accuracy_within_1 = np.mean(np.abs(y_true_actual - y_pred_actual) <= 1.0) * 100
 
     print(f"\n  {model_name} Results:")
-    print(f"    RMSE: {rmse:.4f}")
-    print(f"    MAE:  {mae:.4f}")
-    print(f"    R²:   {r2:.4f}")
+    print(f"    RMSE:           {rmse:.4f}")
+    print(f"    MAE:            {mae:.4f}")
+    print(f"    R²:             {r2:.4f}")
+    print(f"    Accuracy (±1):  {accuracy_within_1:.2f}%")
 
     return {
         "model": model_name,
         "rmse": rmse,
         "mae": mae,
         "r2": r2,
+        "accuracy_within_1": accuracy_within_1,
         "y_true": y_true_actual,
         "y_pred": y_pred_actual
     }
@@ -503,11 +507,11 @@ def main():
     print("\n" + "=" * 60)
     print("  FINAL COMPARISON TABLE")
     print("=" * 60)
-    print(f"{'Model':<25} {'RMSE':>8} {'MAE':>8} {'R²':>8}")
-    print("-" * 51)
+    print(f"{'Model':<25} {'RMSE':>8} {'MAE':>8} {'R²':>8} {'Acc±1':>9}")
+    print("-" * 62)
     for r in results:
-        print(f"{r['model']:<25} {r['rmse']:>8.4f} {r['mae']:>8.4f} {r['r2']:>8.4f}")
-    print("-" * 51)
+        print(f"{r['model']:<25} {r['rmse']:>8.4f} {r['mae']:>8.4f} {r['r2']:>8.4f} {r['accuracy_within_1']:>8.2f}%")
+    print("-" * 62)
 
     best = min(results, key=lambda x: x["rmse"])
     print(f"\nBest model by RMSE: {best['model']}")
@@ -517,7 +521,8 @@ def main():
         "model": r["model"],
         "rmse": float(r["rmse"]),
         "mae": float(r["mae"]),
-        "r2": float(r["r2"])
+        "r2": float(r["r2"]),
+        "accuracy_within_1": float(r["accuracy_within_1"])
     } for r in results]
     with open(os.path.join(OUTPUT_DIR, "results.json"), "w") as f:
         json.dump(summary, f, indent=2)

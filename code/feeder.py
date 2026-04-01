@@ -1,6 +1,7 @@
 import os
 import cdflib
 import psycopg2
+import psycopg2.extras
 from datetime import datetime
 import numpy as np
 from dotenv import load_dotenv
@@ -74,33 +75,27 @@ def process_cdf_file(filepath):
         # -------------------------------------
 
         records_added = 0
-        
+        batch_data = []
+
         for i in range(len(timestamps)):
-            
+
             # Skip rows with bad data (Fill Values are often -1.0E31)
             # Also check for valid speed range
-            if p_speed[i] < 0 or p_speed[i] > 2000: 
+            if p_speed[i] < 0 or p_speed[i] > 2000:
                 continue
 
-            sql = """
-                INSERT INTO swis_moments 
-                (observation_time, proton_density, proton_speed, proton_thermal_speed, alpha_density, alpha_speed, alpha_thermal_speed, sc_x, sc_y, sc_z, instrument_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT DO NOTHING;
-            """
-            
             # Explicitly convert numpy types to Python float/int for SQL compatibility
             # Convert numpy.datetime64 to python datetime
             ts = timestamps[i]
             if hasattr(ts, 'item'):
                 ts = ts.item()
-                
+
             # If it's still an integer (nanoseconds), convert to datetime
             if isinstance(ts, int):
                 # Assuming nanoseconds if it's huge
-                if ts > 1e18: 
+                if ts > 1e18:
                     ts = datetime.fromtimestamp(ts / 1e9)
-            
+
             data = (
                 ts,
                 float(p_density[i]),
@@ -114,28 +109,37 @@ def process_cdf_file(filepath):
                 float(sc_z[i]),
                 instrument_id
             )
-            
-            cursor.execute(sql, data)
-            records_added += 1
+            batch_data.append(data)
+
+        if batch_data:
+            sql = """
+                INSERT INTO swis_moments
+                (observation_time, proton_density, proton_speed, proton_thermal_speed, alpha_density, alpha_speed, alpha_thermal_speed, sc_x, sc_y, sc_z, instrument_id)
+                VALUES %s
+                ON CONFLICT DO NOTHING;
+            """
+            psycopg2.extras.execute_values(cursor, sql, batch_data)
+            records_added = len(batch_data)
 
         conn.commit()
-        print(f"   Success! Inserted {records_added} rows.")
+        print(f"   Success! Inserted up to {records_added} rows (ignored duplicates).")
 
     except Exception as e:
         print(f"   Error processing file: {e}")
         conn.rollback()
 
 def main():
-    base_folder = "E:\Programming\CME-Detection\data\SWIS-ISSDC"
-    subfolders = ["positive", "negative"]
+    base_folder = r"E:\Programming\CME-Detection\data\SWIS-ISSDC"
 
-    for sub in subfolders:
-        folder_path = os.path.join(base_folder, sub)
-        
+    # Only process the new files in the root folder, skipping positive/negative
+    folders_to_check = [
+        base_folder
+    ]
+
+    for folder_path in folders_to_check:
         if not os.path.exists(folder_path):
-            print(f" Warning: Folder not found: {folder_path}")
             continue
-            
+
         print(f"\n Scanning folder: {folder_path}")
         files = sorted(os.listdir(folder_path))
         
