@@ -1,0 +1,130 @@
+{
+  "source_records": {
+    "aditya_l1": 916628,
+    "dscovr_omni": 24432,
+    "kp_index": 15253
+  },
+  "source_date_ranges": {
+    "aditya_l1": [
+      "2024-05-09 00:00:31.117000+00:00",
+      "2026-03-29 17:29:54.651000+00:00"
+    ],
+    "dscovr_omni": [
+      "2024-05-01 00:00:00+00:00",
+      "2026-03-06 02:03:00+00:00"
+    ],
+    "kp_index": [
+      "2024-05-01 00:00:00+00:00",
+      "2026-03-06 02:04:00+00:00"
+    ]
+  },
+  "unique_hours": {
+    "aditya_l1": 3035,
+    "dscovr_omni": 14714,
+    "kp_index": 14901
+  },
+  "overlaps": {
+    "aditya_dscovr": 1586,
+    "aditya_kp": 1534,
+    "dscovr_kp": 14600,
+    "all_three": 1475
+  },
+  "fused_dataset": {
+    "total_rows": 16746,
+    "total_features": 34,
+    "features": [
+      "dscovr_speed",
+      "dscovr_density",
+      "dscovr_temp",
+      "l1_speed",
+      "l1_density",
+      "l1_thermal_speed",
+      "kp_index",
+      "speed",
+      "density",
+      "dynamic_pressure",
+      "kinetic_energy",
+      "momentum_flux",
+      "speed_gradient_1h",
+      "speed_gradient_3h",
+      "density_gradient_1h",
+      "density_gradient_3h",
+      "pressure_gradient",
+      "speed_mean_6h",
+      "speed_std_6h",
+      "speed_variance_6h",
+      "density_variance_6h",
+      "pressure_mean_6h",
+      "speed_ema_6h",
+      "density_ema_6h",
+      "kp_lag_1h",
+      "kp_lag_3h",
+      "kp_lag_6h",
+      "kp_rolling_mean_6h",
+      "speed_x_density",
+      "speed_squared",
+      "log_density",
+      "is_aditya_available",
+      "is_dscovr_available",
+      "source_count"
+    ]
+  },
+  "missing_data_report": {
+    "dscovr_speed": {
+      "total_rows": 16746,
+      "missing_before": 2032,
+      "pct_missing_before": 12.13,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 2032
+    },
+    "dscovr_density": {
+      "total_rows": 16746,
+      "missing_before": 2032,
+      "pct_missing_before": 12.13,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 2032
+    },
+    "dscovr_temp": {
+      "total_rows": 16746,
+      "missing_before": 16577,
+      "pct_missing_before": 98.99,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 16577
+    },
+    "l1_speed": {
+      "total_rows": 16746,
+      "missing_before": 13711,
+      "pct_missing_before": 81.88,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 13711
+    },
+    "l1_density": {
+      "total_rows": 16746,
+      "missing_before": 13711,
+      "pct_missing_before": 81.88,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 13711
+    },
+    "l1_thermal_speed": {
+      "total_rows": 16746,
+      "missing_before": 13712,
+      "pct_missing_before": 81.88,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 13712
+    },
+    "kp_index": {
+      "total_rows": 16746,
+      "missing_before": 1604,
+      "pct_missing_before": 9.58,
+      "missing_after": 0,
+      "pct_missing_after": 0.0,
+      "filled": 1604
+    }
+  }
+}

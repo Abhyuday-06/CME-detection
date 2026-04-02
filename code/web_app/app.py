@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 import pickle
+import json
 import os
 import subprocess
 import threading
@@ -319,16 +320,17 @@ def get_telemetry():
 def get_forecast():
     conn = get_db_connection()
     
-    # Get hourly-averaged plasma data
+    # Get hourly-averaged plasma data with thermal_speed
     query = '''
         SELECT 
             date_trunc('hour', observation_time) as obs_hour,
             AVG(proton_speed) as speed, 
-            AVG(proton_density) as density
+            AVG(proton_density) as density,
+            AVG(proton_thermal_speed) as thermal_speed
         FROM swis_moments
         GROUP BY obs_hour
         ORDER BY obs_hour DESC
-        LIMIT 24;
+        LIMIT 40;
     '''
     df = pd.read_sql(query, conn)
     
@@ -372,6 +374,21 @@ def get_forecast():
     synthetic_kp = compute_synthetic_kp(df['speed'], df['density'])
     df['kp'] = df['kp'].combine_first(synthetic_kp)
     df = df.interpolate(method='linear').bfill().ffill()
+    df = df.fillna(df.median())
+    
+    # --- Engineer features matching train_kp_fast.py ---
+    df['dynamic_pressure'] = df['density'] * (df['speed'] ** 2) * 1.6726e-6
+    df['speed_gradient'] = df['speed'].diff().fillna(0)
+    df['density_gradient'] = df['density'].diff().fillna(0)
+    df['speed_variance_6h'] = df['speed'].rolling(6, min_periods=1).var()
+    df['density_variance_6h'] = df['density'].rolling(6, min_periods=1).var()
+    df['speed_ema'] = df['speed'].ewm(span=6, min_periods=1).mean()
+    df['kp_lag_1h'] = df['kp'].shift(1).bfill()
+    df['kp_lag_3h'] = df['kp'].shift(3).bfill()
+    df['kp_rolling_mean'] = df['kp'].rolling(6, min_periods=1).mean()
+    df['speed_x_density'] = df['speed'] * df['density']
+    df['momentum_flux'] = df['density'] * df['speed']
+    df.fillna(0, inplace=True)
 
     speed_trend = df['speed'].iloc[-1] - df['speed'].iloc[-6] if len(df) >= 6 else 0
     density_trend = df['density'].iloc[-1] - df['density'].iloc[-6] if len(df) >= 6 else 0
@@ -393,29 +410,45 @@ def get_forecast():
 
     try:
         if model is not None and scaler_X is not None and scaler_Y is not None:
-            features = df[['speed', 'density', 'kp']].values
-            input_scaled = scaler_X.transform(features).reshape(1, 24, 3)
-            pred_scaled = model.predict(input_scaled, verbose=0)
-            pred_kp = scaler_Y.inverse_transform(pred_scaled)[0]
+            # Use the engineered feature columns matching the model training order
+            feature_cols = ['speed', 'density', 'thermal_speed', 'dynamic_pressure',
+                           'speed_gradient', 'density_gradient', 'speed_variance_6h',
+                           'density_variance_6h', 'speed_ema', 'speed_x_density',
+                           'momentum_flux', 'kp']
             
-            # Blend: weight model 40%, heuristic 60% (model often outputs near-zero)
-            blended_preds = []
-            for i in range(min(6, len(pred_kp))):
-                ml_val = float(pred_kp[i])
-                # If ML output is suspiciously near zero, trust heuristic more
-                if abs(ml_val) < 0.5:
-                    blended = heuristic_preds[i]
-                else:
-                    blended = ml_val * 0.4 + heuristic_preds[i] * 0.6
-                blended_preds.append(max(0.3, min(9.0, blended)))
+            # Ensure all columns exist, fill missing with 0
+            for col in feature_cols:
+                if col not in df.columns:
+                    df[col] = 0
             
-            # Pad if model returned fewer than 6 predictions
-            while len(blended_preds) < 6:
-                blended_preds.append(heuristic_preds[len(blended_preds)])
+            # Take last 24 rows
+            df_input = df[feature_cols].tail(24)
+            
+            if len(df_input) < 24:
+                blended_preds = heuristic_preds
+            else:
+                input_scaled = scaler_X.transform(df_input.values).reshape(1, 24, len(feature_cols))
+                pred_scaled = model.predict(input_scaled, verbose=0)
+                pred_kp = scaler_Y.inverse_transform(pred_scaled)[0]
+                
+                # Blend: weight model 80%, heuristic 20% (model is now properly trained)
+                blended_preds = []
+                for i in range(min(6, len(pred_kp))):
+                    ml_val = float(pred_kp[i])
+                    if abs(ml_val) < 0.3:
+                        blended = heuristic_preds[i]
+                    else:
+                        blended = ml_val * 0.8 + heuristic_preds[i] * 0.2
+                    blended_preds.append(max(0.3, min(9.0, blended)))
+                
+                while len(blended_preds) < 6:
+                    blended_preds.append(heuristic_preds[len(blended_preds)])
         else:
             blended_preds = heuristic_preds
     except Exception as e:
         print("Model prediction error: ", e)
+        import traceback
+        traceback.print_exc()
         blended_preds = heuristic_preds
 
     last_time = df.index[-1]
@@ -454,6 +487,43 @@ def get_forecast():
         'predictions': forecasts,
         'reason': reason
     })
+@app.route('/api/model-metrics')
+@login_required
+def get_model_metrics():
+    """Returns model accuracy metrics for the dashboard display."""
+    metrics = {
+        'comparison_results': None,
+        'dashboard_model': None,
+        'live_vs_static': None
+    }
+    
+    # Read model comparison results
+    results_path = os.path.join(CODE_DIR, 'model_output', 'results.json')
+    if os.path.exists(results_path):
+        with open(results_path) as f:
+            metrics['comparison_results'] = json.load(f)
+    
+    # Read dashboard model metrics
+    dash_path = os.path.join(CODE_DIR, 'model_output', 'dashboard_model_metrics.json')
+    if os.path.exists(dash_path):
+        with open(dash_path) as f:
+            metrics['dashboard_model'] = json.load(f)
+    
+    # Read live vs static results
+    lvs_path = os.path.join(CODE_DIR, 'model_output', 'live_vs_static_results.json')
+    if os.path.exists(lvs_path):
+        with open(lvs_path) as f:
+            metrics['live_vs_static'] = json.load(f)
+    
+    # Fusion report
+    fusion_path = os.path.join(CODE_DIR, 'model_output', 'fusion_report.json')
+    if os.path.exists(fusion_path):
+        with open(fusion_path) as f:
+            metrics['fusion_report'] = json.load(f)
+    
+    return jsonify(metrics)
+
+
 @app.route('/api/system-status')
 def get_system_status():
     """Returns the latest available data timestamp to anchor the dashboard."""

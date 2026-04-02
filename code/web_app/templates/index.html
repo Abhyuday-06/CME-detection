@@ -539,6 +539,48 @@
             </div>
         </div>
 
+        <!-- Model Performance Row -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="glass-panel metric-card" style="border-left: 4px solid var(--accent-purple);">
+                    <div class="d-flex justify-content-between align-items-start mb-3" title="Best model prediction accuracy from the model comparison pipeline.">
+                        <div class="metric-label">Best Model Accuracy <i class="bi bi-info-circle ms-1"></i></div>
+                        <i class="bi bi-bullseye" style="font-size: 1.5rem; color: var(--accent-purple); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value">
+                        <span class="small" style="color: var(--accent-purple); font-family: 'Share Tech Mono'; letter-spacing: 1px; font-size: 0.7rem;">±1 Kp TOLERANCE</span><br>
+                        <span id="metric-accuracy" class="text-white">---</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <div class="mt-2 small" style="color: var(--text-muted); font-size: 0.7rem;" id="metric-accuracy-model">Loading...</div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="glass-panel metric-card" style="border-left: 4px solid var(--accent-cyan);">
+                    <div class="d-flex justify-content-between align-items-start mb-3" title="R-squared score indicates how well the model explains variance in Kp index.">
+                        <div class="metric-label">Best R² Score <i class="bi bi-info-circle ms-1"></i></div>
+                        <i class="bi bi-graph-up" style="font-size: 1.5rem; color: var(--accent-cyan); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value">
+                        <span id="metric-r2" class="text-white">---</span>
+                    </div>
+                    <div class="mt-2 small" style="color: var(--text-muted); font-size: 0.7rem;" id="metric-r2-model">Loading...</div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="glass-panel metric-card" style="border-left: 4px solid var(--accent-gold);">
+                    <div class="d-flex justify-content-between align-items-start mb-3" title="Number of engineered features used by the prediction models after data fusion.">
+                        <div class="metric-label">Fused Features <i class="bi bi-info-circle ms-1"></i></div>
+                        <i class="bi bi-layers" style="font-size: 1.5rem; color: var(--accent-gold); opacity: 0.5;"></i>
+                    </div>
+                    <div class="metric-value">
+                        <span id="metric-features" class="text-white">---</span>
+                    </div>
+                    <div class="mt-2 small" style="color: var(--text-muted); font-size: 0.7rem;">Data Fusion + Feature Engineering</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Dashboard Grid -->
         <div class="row g-4">
             <!-- Left: Charts -->
@@ -824,6 +866,7 @@
             setTimeRange('live', document.getElementById('btn-live'));
             loadAlerts();
             loadForecast();
+            loadModelMetrics();
         }
 
         async function setTimeRange(range, btnElement) {
@@ -1076,15 +1119,39 @@
 
 
         async function loadAlerts() {
-            // Fetch DB-level storm count for the metric card only.
-            // Event log table is populated by updateCharts() from live telemetry data.
             try {
                 const res = await fetch('/api/alerts');
                 const data = await res.json();
-                // Only update the storm count metric — do NOT overwrite the event log table
-                // (updateCharts handles that with proper 5-column layout)
             } catch(e) {
                 console.error("Alerts fetching failed", e);
+            }
+        }
+
+        async function loadModelMetrics() {
+            try {
+                const res = await fetch('/api/model-metrics');
+                const data = await res.json();
+                
+                if (data.comparison_results && data.comparison_results.length > 0) {
+                    // Find best model by accuracy
+                    const best = data.comparison_results.reduce((a, b) => 
+                        (a.accuracy_within_1 || 0) > (b.accuracy_within_1 || 0) ? a : b
+                    );
+                    document.getElementById('metric-accuracy').innerText = (best.accuracy_within_1 || 0).toFixed(1);
+                    document.getElementById('metric-accuracy-model').innerText = `Best: ${best.model}`;
+                    
+                    const bestR2 = data.comparison_results.reduce((a, b) => 
+                        (a.r2 || 0) > (b.r2 || 0) ? a : b
+                    );
+                    document.getElementById('metric-r2').innerText = (bestR2.r2 || 0).toFixed(4);
+                    document.getElementById('metric-r2-model').innerText = `Best: ${bestR2.model}`;
+                }
+                
+                if (data.fusion_report && data.fusion_report.fused_dataset) {
+                    document.getElementById('metric-features').innerText = data.fusion_report.fused_dataset.total_features || '---';
+                }
+            } catch(e) {
+                console.error('Model metrics load error', e);
             }
         }
 

@@ -1,17 +1,27 @@
 [
   {
     "model": "LSTM",
-    "accuracy_within_1": 64.85,
-    "r2": 0.4265
+    "accuracy_within_1": 92.86,
+    "r2": 0.7536
   },
   {
     "model": "PINN",
-    "accuracy_within_1": 66.49,
-    "r2": 0.4526
+    "accuracy_within_1": 93.16,
+    "r2": 0.7392
   },
   {
     "model": "Quantum-Inspired",
-    "accuracy_within_1": 65.5,
-    "r2": 0.4398
+    "accuracy_within_1": 93.22,
+    "r2": 0.7402
+  },
+  {
+    "model": "XGBoost",
+    "accuracy_within_1": 90.65,
+    "r2": 0.6666
+  },
+  {
+    "model": "Random Forest",
+    "accuracy_within_1": 89.16,
+    "r2": 0.6317
   }
 ]
