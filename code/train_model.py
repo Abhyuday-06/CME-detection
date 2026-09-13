@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 import os
 import pickle
 from dotenv import load_dotenv
+from model_store import save_artifact
 
 load_dotenv()
 
@@ -113,6 +114,27 @@ def main():
 
     model.save(model_path)
     print(f"Model saved to {model_path}")
+
+    # Persist to Neon so the artifact survives a redeploy/restart on ephemeral disk
+    try:
+        save_artifact('cme_model', model_path)
+        save_artifact('cme_scaler', scaler_path)
+    except Exception as e:
+        print(f"Failed to persist model artifacts to Neon: {e}")
+
+    # Log to system_logs
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO system_logs (service_name, status, message, timestamp)
+            VALUES (%s, %s, %s, NOW())
+        """, ('TrainModelScript', 'SUCCESS', f'Training completed on {len(X_train)} samples.'))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Failed to log to system_logs: {e}")
 
 if __name__ == "__main__":
     main()

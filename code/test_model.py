@@ -6,6 +6,7 @@ import pickle
 import os
 from sklearn.preprocessing import MinMaxScaler
 from dotenv import load_dotenv
+from model_store import load_artifact
 
 load_dotenv()
 
@@ -30,6 +31,13 @@ def get_data():
 
 def test_random_predictions(n=5):
     # 1. Load Resources
+    print("Pulling latest model artifacts from Neon...")
+    try:
+        load_artifact('cme_model', MODEL_PATH)
+        load_artifact('cme_scaler', SCALER_PATH)
+    except Exception as e:
+        print(f"Could not pull artifacts from Neon, falling back to local files: {e}")
+
     print("Loading Model & Scaler...")
     try:
         model = tf.keras.models.load_model(MODEL_PATH)
