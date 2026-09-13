@@ -9,6 +9,7 @@ import pickle
 import json
 import os
 import subprocess
+import sys
 import threading
 from dotenv import load_dotenv
 
@@ -543,9 +544,17 @@ def get_system_status():
 @app.route('/api/alerts')
 @login_required
 def get_alerts():
-    # Read the 10 most recent high Kp moments
+    # Read the 10 most recent high Kp moments + DB alerts
     conn = get_db_connection()
     cur = conn.cursor()
+    
+    cur.execute('''
+        SELECT generated_at, severity, message 
+        FROM alerts 
+        ORDER BY generated_at DESC LIMIT 10
+    ''')
+    db_alerts = cur.fetchall()
+    
     cur.execute('''
         SELECT timestamp, kp_index, source 
         FROM geomagnetic_indices 
@@ -555,23 +564,64 @@ def get_alerts():
     rows = cur.fetchall()
     
     cur.execute("SELECT COUNT(*) FROM geomagnetic_indices WHERE kp_index >= 4.0")
-    total_count = cur.fetchone()[0]
+    kp_count = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM alerts")
+    db_count = cur.fetchone()[0]
+    
     conn.close()
     
+    total_count = kp_count + db_count
+    
     alerts = []
+    
+    for r in db_alerts:
+        alerts.append({
+            'generated_at': r[0].isoformat() if hasattr(r[0], 'isoformat') else r[0],
+            'severity': r[1],
+            'message': r[2]
+        })
+        
     for r in rows:
         ts, kp, src = r
         sev = 'HIGH' if kp >= 6 else 'MEDIUM'
         alerts.append({
-            'generated_at': ts,
+            'generated_at': ts.isoformat() if hasattr(ts, 'isoformat') else ts,
             'severity': sev,
-            'message': f"Geomagnetic Storm threshold crossed. Kp={kp:.1f}"
+            'message': f"Geomagnetic Storm threshold crossed. Kp={kp:.1f} (Source: {src})"
         })
+        
+    # Sort descending
+    sorted_alerts = sorted(alerts, key=lambda x: str(x['generated_at']), reverse=True)[:10]
         
     return jsonify({
         'total': total_count,
-        'recent': alerts
+        'recent': sorted_alerts
     })
+
+@app.route('/api/system-logs')
+@login_required
+def get_system_logs():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT timestamp, service_name, status, message
+        FROM system_logs 
+        ORDER BY timestamp DESC LIMIT 20
+    ''')
+    rows = cur.fetchall()
+    conn.close()
+    
+    logs = []
+    for r in rows:
+        logs.append({
+            'timestamp': r[0].isoformat() if r[0] else None,
+            'service': r[1],
+            'status': r[2],
+            'message': r[3]
+        })
+    return jsonify({'logs': logs})
+
 @app.route('/api/cme-history')
 @login_required
 def get_cme_history():
@@ -671,7 +721,7 @@ def ingest_data():
             # 1. Feed Data
             script_path = os.path.join(CODE_DIR, 'feeder.py')
             print(f"Running Feeder on {temp_dir}...")
-            subprocess.run(['python', script_path, '--dir', temp_dir], capture_output=True)
+            subprocess.run([sys.executable, script_path, '--dir', temp_dir], capture_output=True)
             
             # Cleanup
             for f in os.listdir(temp_dir):
@@ -683,7 +733,7 @@ def ingest_data():
             # 2. Run Detection
             print("Running Post-Ingest Detection...")
             det_path = os.path.join(CODE_DIR, 'detection.py')
-            subprocess.run(['python', det_path], capture_output=True)
+            subprocess.run([sys.executable, det_path], capture_output=True)
             print("Pipeline Complete.")
             
         thread = threading.Thread(target=run_feeder_pipeline)
@@ -698,7 +748,7 @@ def ingest_data():
         def run_scraper_pipeline():
             # 1. Scrape Data
             script_path = os.path.join(CODE_DIR, 'cactus_scraper.py')
-            args = ['python', script_path]
+            args = [sys.executable, script_path]
             if start_date: args.extend(['--start', start_date])
             if end_date: args.extend(['--end', end_date])
             
@@ -708,7 +758,7 @@ def ingest_data():
             # 2. Run Detection
             print("Running Post-Scrape Detection...")
             det_path = os.path.join(CODE_DIR, 'detection.py')
-            subprocess.run(['python', det_path], capture_output=True)
+            subprocess.run([sys.executable, det_path], capture_output=True)
             print("Pipeline Complete.")
             
         thread = threading.Thread(target=run_scraper_pipeline)
@@ -736,13 +786,13 @@ def run_script():
     def run_process_pipeline():
         # 1. Run Script (Training)
         print(f"Running Script: {script_name}...")
-        subprocess.run(['python', script_path], capture_output=True)
+        subprocess.run([sys.executable, script_path], capture_output=True)
         
         # 2. Run Detection (If needed after training? Maybe not, but user asked for "everything implemented... at last detection.py needs to be run automatically")
         # Running detection after training updates the logic/thresholds potentially, so re-running detection on historical data makes sense.
         print("Running Post-Process Detection...")
         det_path = os.path.join(CODE_DIR, 'detection.py')
-        subprocess.run(['python', det_path], capture_output=True)
+        subprocess.run([sys.executable, det_path], capture_output=True)
         print("Pipeline Complete.")
         
     # Run in background to not block UI
@@ -753,4 +803,6 @@ def run_script():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
+    app.run(debug=debug, host='0.0.0.0', port=port)

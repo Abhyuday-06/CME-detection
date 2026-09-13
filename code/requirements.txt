@@ -1,4 +1,5 @@
 flask
+gunicorn
 psycopg2-binary
 pandas
 cdflib
@@ -8,7 +9,5 @@ tensorflow
 flask-cors
 flask-login
 python-dotenv
-dotenv
 requests
-torch
 matplotlib

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: cme-detection
+    runtime: python
+    plan: free
+    buildCommand: pip install -r code/requirements.txt
+    startCommand: gunicorn --chdir code/web_app --workers 1 --threads 4 --timeout 120 app:app
+    envVars:
+      - key: DB_URI
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: GUEST_PASSWORD
+        sync: false
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: PYTHON_VERSION
+        value: "3.13.5"
