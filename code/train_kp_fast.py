@@ -17,6 +17,7 @@ from tensorflow.keras.models import Sequential  # type: ignore
 from tensorflow.keras.layers import LSTM, Dense, Dropout  # type: ignore
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau  # type: ignore
 from dotenv import load_dotenv
+from model_store import save_artifact
 
 load_dotenv()
 DB_URI = os.getenv('DB_URI')
@@ -162,11 +163,23 @@ overall_acc_1h = metrics['kp+1h']['accuracy']
 print(f"\n  ★ 1-Hour Ahead Accuracy (±1 Kp): {overall_acc_1h:.1f}%")
 
 # Save model and scalers
-model.save(os.path.join(BASE_DIR, 'kp_model.keras'))
-with open(os.path.join(BASE_DIR, 'kp_scaler_X.pkl'), 'wb') as f:
+kp_model_path = os.path.join(BASE_DIR, 'kp_model.keras')
+kp_scaler_x_path = os.path.join(BASE_DIR, 'kp_scaler_X.pkl')
+kp_scaler_y_path = os.path.join(BASE_DIR, 'kp_scaler_Y.pkl')
+
+model.save(kp_model_path)
+with open(kp_scaler_x_path, 'wb') as f:
     pickle.dump(scaler_X, f)
-with open(os.path.join(BASE_DIR, 'kp_scaler_Y.pkl'), 'wb') as f:
+with open(kp_scaler_y_path, 'wb') as f:
     pickle.dump(scaler_Y, f)
+
+# Persist to Neon so the artifact survives a redeploy/restart on ephemeral disk
+try:
+    save_artifact('kp_model', kp_model_path)
+    save_artifact('kp_scaler_X', kp_scaler_x_path)
+    save_artifact('kp_scaler_Y', kp_scaler_y_path)
+except Exception as e:
+    print(f"Failed to persist Kp model artifacts to Neon: {e}")
 
 # Save dashboard model metrics
 with open(os.path.join(OUTPUT_DIR, 'dashboard_model_metrics.json'), 'w') as f:

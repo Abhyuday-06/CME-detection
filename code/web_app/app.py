@@ -66,19 +66,34 @@ MODEL_PATH = os.path.join(CODE_DIR, 'kp_model.keras')
 SCALER_X_PATH = os.path.join(CODE_DIR, 'kp_scaler_X.pkl')
 SCALER_Y_PATH = os.path.join(CODE_DIR, 'kp_scaler_Y.pkl')
 
-print(f"Loading Model from: {MODEL_PATH}")
-try:
-    model = tf.keras.models.load_model(MODEL_PATH)
-    with open(SCALER_X_PATH, 'rb') as f:
-        scaler_X = pickle.load(f)
-    with open(SCALER_Y_PATH, 'rb') as f:
-        scaler_Y = pickle.load(f)
-    print("Model & Scalers Loaded Successfully.")
-except Exception as e:
-    print(f"Error loading ML components: {e}")
-    model, scaler_X, scaler_Y = None, None, None
-    model = None
-    scaler = None
+def load_kp_model():
+    """(Re)load the Kp model + scalers into the module-level globals.
+    Pulls the latest trained artifact from Neon first (if any), so a
+    retrain survives a redeploy/restart on Render's ephemeral disk.
+    """
+    global model, scaler_X, scaler_Y
+    try:
+        from model_store import load_artifact
+        load_artifact('kp_model', MODEL_PATH)
+        load_artifact('kp_scaler_X', SCALER_X_PATH)
+        load_artifact('kp_scaler_Y', SCALER_Y_PATH)
+    except Exception as e:
+        print(f"Could not pull Kp model artifacts from Neon, using local files: {e}")
+
+    print(f"Loading Model from: {MODEL_PATH}")
+    try:
+        model = tf.keras.models.load_model(MODEL_PATH)
+        with open(SCALER_X_PATH, 'rb') as f:
+            scaler_X = pickle.load(f)
+        with open(SCALER_Y_PATH, 'rb') as f:
+            scaler_Y = pickle.load(f)
+        print("Model & Scalers Loaded Successfully.")
+    except Exception as e:
+        print(f"Error loading ML components: {e}")
+        model, scaler_X, scaler_Y = None, None, None
+
+
+load_kp_model()
 
 # --- ROUTES ---
 
@@ -775,19 +790,26 @@ def run_script():
         
     script_name = request.json.get('script')
     allowed_scripts = {
-        'train': 'train_model.py'
+        'train': 'train_model.py',
+        'train_kp': 'train_kp_fast.py'
     }
-    
+
     if script_name not in allowed_scripts:
         return jsonify({'error': 'Invalid script'}), 400
-        
+
     script_path = os.path.join(CODE_DIR, allowed_scripts[script_name])
-    
+
     def run_process_pipeline():
         # 1. Run Script (Training)
         print(f"Running Script: {script_name}...")
         subprocess.run([sys.executable, script_path], capture_output=True)
-        
+
+        # 1b. Kp model is served live from process memory - reload it so the
+        # dashboard picks up the freshly trained weights without a restart.
+        if script_name == 'train_kp':
+            print("Reloading live Kp model...")
+            load_kp_model()
+
         # 2. Run Detection (If needed after training? Maybe not, but user asked for "everything implemented... at last detection.py needs to be run automatically")
         # Running detection after training updates the logic/thresholds potentially, so re-running detection on historical data makes sense.
         print("Running Post-Process Detection...")
