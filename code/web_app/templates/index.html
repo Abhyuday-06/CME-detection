@@ -429,11 +429,8 @@
                                 <button class="btn btn-danger-custom font-monospace" data-bs-toggle="modal" data-bs-target="#ingestModal" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
                                     <i class="bi bi-cloud-upload me-1 me-md-2"></i>INGEST<span class="d-none d-sm-inline"> DATA</span>
                                 </button>
-                                <button class="btn btn-danger-custom font-monospace" onclick="runScript('train')" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
-                                    <i class="bi bi-cpu me-1 me-md-2"></i>RETRAIN<span class="d-none d-sm-inline"> CME MODEL</span>
-                                </button>
-                                <button class="btn btn-danger-custom font-monospace" onclick="runScript('train_kp')" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
-                                    <i class="bi bi-graph-up-arrow me-1 me-md-2"></i>RETRAIN<span class="d-none d-sm-inline"> KP MODEL</span>
+                                <button class="btn btn-danger-custom font-monospace" onclick="runScript('train_all')" style="padding: 0.5rem 0.8rem; letter-spacing: 0.5px; font-size: 0.85rem;">
+                                    <i class="bi bi-cpu me-1 me-md-2"></i>RETRAIN<span class="d-none d-sm-inline"> ALL MODELS</span>
                                 </button>
                             </div>
                         </div>
@@ -1226,11 +1223,16 @@
         
 // --- SCIENTIST FUNCTIONS ---
         async function runScript(scriptName) {
-            if(!confirm(`Authorize execution of: ${scriptName}.py?`)) return;
-            
+            const labels = {
+                'train_all': 'Retrain BOTH the CME model and the Kp model',
+                'train': 'Retrain the CME model',
+                'train_kp': 'Retrain the Kp model'
+            };
+            if(!confirm(`Authorize: ${labels[scriptName] || scriptName}?`)) return;
+
             // Show Status Modal
             const modal = new bootstrap.Modal(document.getElementById('jobModal'));
-            document.getElementById('job-status-text').innerText = scriptName === 'feeder' ? "INGESTING SATELLITE DATA..." : "TRAINING NEURAL NETWORK...";
+            document.getElementById('job-status-text').innerText = "TRAINING NEURAL NETWORK(S)... THIS MAY TAKE A FEW MINUTES.";
             modal.show();
 
             try {
@@ -1240,12 +1242,23 @@
                     body: JSON.stringify({script: scriptName})
                 });
                 const data = await res.json();
-                
+
                 // Keep modal for a second then close or update
                 setTimeout(() => {
                     modal.hide();
-                    if(data.error) alert("Error: " + data.error);
-                    else alert("Process initiated successfully. Check logs for completion.");
+                    if(data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        alert("Training started in the background. The dashboard's Kp forecast will refresh automatically once it's done.");
+                        // Poll the forecast a few times so the new model's predictions
+                        // show up without requiring a manual page refresh.
+                        let attempts = 0;
+                        const poll = setInterval(() => {
+                            attempts++;
+                            loadForecast();
+                            if (attempts >= 10) clearInterval(poll);
+                        }, 30000);
+                    }
                 }, 2000);
             } catch(e) {
                 modal.hide();
