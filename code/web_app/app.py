@@ -381,6 +381,11 @@ def get_forecast():
             direction='nearest'
         )
         df.rename(columns={'kp_index': 'kp'}, inplace=True)
+        # merge_asof leaves the right-side join key ('kp_time') behind as a
+        # datetime column. Newer pandas raises instead of silently upcasting
+        # when fillna(0) below hits it, which crashed this whole endpoint
+        # with a 500 -> the Kp forecast never rendered on the dashboard.
+        df.drop(columns=['kp_time'], inplace=True, errors='ignore')
     else:
         df['kp'] = np.nan
     
@@ -789,38 +794,61 @@ def run_script():
         return jsonify({'error': 'Unauthorized'}), 403
         
     script_name = request.json.get('script')
-    allowed_scripts = {
-        'train': 'train_model.py',
-        'train_kp': 'train_kp_fast.py'
+    # 'train_all' is the single "RETRAIN" button entry point: it runs the CME
+    # model and the Kp model training scripts back-to-back, then detection.
+    script_groups = {
+        'train': ['train_model.py'],
+        'train_kp': ['train_kp_fast.py'],
+        'train_all': ['train_model.py', 'train_kp_fast.py'],
     }
 
-    if script_name not in allowed_scripts:
+    if script_name not in script_groups:
         return jsonify({'error': 'Invalid script'}), 400
 
-    script_path = os.path.join(CODE_DIR, allowed_scripts[script_name])
+    scripts_to_run = script_groups[script_name]
+
+    def log_status(status, message):
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO system_logs (service_name, status, message, timestamp)
+                VALUES (%s, %s, %s, NOW())
+            """, ('RetrainPipeline', status, message))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Failed to write system_logs entry: {e}")
 
     def run_process_pipeline():
-        # 1. Run Script (Training)
-        print(f"Running Script: {script_name}...")
-        subprocess.run([sys.executable, script_path], capture_output=True)
+        for script in scripts_to_run:
+            print(f"Running Script: {script}...")
+            script_path = os.path.join(CODE_DIR, script)
+            result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"{script} failed:\n{result.stderr}")
+                log_status('FAILURE', f'{script} exited with code {result.returncode}: {result.stderr[-500:]}')
+            else:
+                log_status('SUCCESS', f'{script} completed successfully.')
 
-        # 1b. Kp model is served live from process memory - reload it so the
+        # Kp model is served live from process memory - reload it so the
         # dashboard picks up the freshly trained weights without a restart.
-        if script_name == 'train_kp':
+        if 'train_kp_fast.py' in scripts_to_run:
             print("Reloading live Kp model...")
             load_kp_model()
 
-        # 2. Run Detection (If needed after training? Maybe not, but user asked for "everything implemented... at last detection.py needs to be run automatically")
-        # Running detection after training updates the logic/thresholds potentially, so re-running detection on historical data makes sense.
+        # Re-run detection on historical data so thresholds/logic reflect the
+        # freshly trained model(s).
         print("Running Post-Process Detection...")
         det_path = os.path.join(CODE_DIR, 'detection.py')
         subprocess.run([sys.executable, det_path], capture_output=True)
         print("Pipeline Complete.")
-        
+        log_status('SUCCESS', f'Retrain pipeline ({script_name}) + detection complete.')
+
     # Run in background to not block UI
     thread = threading.Thread(target=run_process_pipeline)
     thread.start()
-    
+
     return jsonify({'status': 'started', 'message': f'{script_name} + Detection started in background'})
 
 
